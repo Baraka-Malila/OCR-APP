@@ -1,12 +1,10 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, Alert, ActivityIndicator } from 'react-native';
-import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
+import React, { useState, useRef } from 'react';
+import { StyleSheet, Text, View, TouchableOpacity, Alert } from 'react-native';
+import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import * as ImageManipulator from 'expo-image-manipulator';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import ROUTES from '../constants/routes';
-import CustomButton from '../components/CustomButton';
 import { processImageWithOCR } from '../services/ocrService';
 import { optimizeImageForOCR } from '../utils/imageUtils';
 
@@ -16,113 +14,98 @@ type CameraScanScreenNavigationProp = StackNavigationProp<
 >;
 
 export default function CameraScanScreen() {
+  const [isProcessing, setIsProcessing] = useState(false);
   const [permission, requestPermission] = useCameraPermissions();
-  const [type, setType] = useState<CameraType>('back');
-  const [isCapturing, setIsCapturing] = useState(false);
-  const cameraRef = useRef<any>(null);
+  const cameraRef = useRef<CameraView>(null);
   const navigation = useNavigation<CameraScanScreenNavigationProp>();
 
-  useEffect(() => {
-    requestPermission();
-  }, []);
-
-  const takePicture = async () => {
-    if (cameraRef.current && !isCapturing) {
-      try {
-        setIsCapturing(true);
-        const photo = await cameraRef.current.takePictureAsync({ quality: 1 });
-        
-        // Optimize image for OCR processing
-        const optimizedImage = await optimizeImageForOCR(photo.uri);
-        
-        // Process the image with OCR
-        const recognizedText = await processImageWithOCR(optimizedImage);
-        
-        // Navigate to result screen with data
-        navigation.navigate(ROUTES.RESULT, {
-          imageUri: optimizedImage,
-          recognizedText,
-          timestamp: Date.now()
-        });
-      } catch (error) {
-        console.error('Error capturing image:', error);
-        Alert.alert(
-          'Capture Failed', 
-          'There was a problem capturing the image. Please try again.'
-        );
-      } finally {
-        setIsCapturing(false);
-      }
-    }
-  };
-
-  const flipCamera = () => {
-    setType(type === 'back' ? 'front' : 'back');
-  };
-
   if (!permission) {
-    return (
-      <View style={styles.centeredContainer}>
-        <ActivityIndicator size="large" color="#3498db" />
-        <Text style={styles.permissionText}>Requesting camera permission...</Text>
-      </View>
-    );
+    // Camera permissions are still loading
+    return <View style={styles.container} />;
   }
 
   if (!permission.granted) {
     return (
-      <View style={styles.centeredContainer}>
-        <Text style={styles.permissionText}>No access to camera</Text>
-        <Text style={styles.permissionSubtext}>
-          Camera permission is required to use this feature.
-        </Text>
-        <CustomButton
-          title="Go Back"
-          onPress={() => navigation.goBack()}
-          style={styles.backButton}
-        />
+      <View style={styles.container}>
+        <Text style={styles.text}>Camera permission is required</Text>
+        <TouchableOpacity 
+          style={styles.button}
+          onPress={requestPermission}
+        >
+          <Text style={styles.buttonText}>Grant Permission</Text>
+        </TouchableOpacity>
       </View>
     );
   }
 
+  const takePicture = async () => {
+    if (!cameraRef.current || isProcessing) return;
+
+    try {
+      setIsProcessing(true);
+      const photo = await cameraRef.current.takePictureAsync({
+        quality: 0.8,
+        skipProcessing: true,
+      });
+
+      const optimizedImage = await optimizeImageForOCR(photo.uri);
+      const recognizedText = await processImageWithOCR(optimizedImage);
+
+      navigation.navigate(ROUTES.RESULT, {
+        imageUri: optimizedImage,
+        recognizedText,
+        timestamp: Date.now(),
+      });
+    } catch (error) {
+      console.error('Error taking picture:', error);
+      Alert.alert(
+        'Error',
+        'Failed to capture image. Please try again.',
+        [{ text: 'OK' }]
+      );
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   return (
     <View style={styles.container}>
-      <CameraView 
-        ref={cameraRef} 
-        style={styles.camera} 
-        facing={type}
-        ratio="4:3"
+      <CameraView
+        ref={cameraRef}
+        style={styles.camera}
+        facing="back"
+        onMountError={(error) => {
+          console.error('Camera mount error:', error);
+          Alert.alert('Error', 'Failed to start camera');
+        }}
       />
       
+      {/* Overlay elements using absolute positioning */}
       <View style={styles.overlay}>
         <View style={styles.scanFrame} />
         <Text style={styles.instructionText}>
-          Position document within the frame
+          Position document within frame
         </Text>
       </View>
       
-      <View style={styles.controlsContainer}>
-        <CustomButton
-          title="Flip Camera"
-          icon="camera-reverse"
-          onPress={flipCamera}
-          style={styles.flipButton}
-        />
-        
-        <CustomButton
-          title={isCapturing ? "Processing..." : "Capture Document"}
-          icon={isCapturing ? "hourglass" : "scan"}
+      <View style={styles.buttonContainer}>
+        <TouchableOpacity
+          style={[styles.button, isProcessing && styles.buttonDisabled]}
           onPress={takePicture}
-          disabled={isCapturing}
-          style={styles.captureButton}
-        />
-        
-        <CustomButton
-          title="Cancel"
-          icon="close-circle"
+          disabled={isProcessing}
+        >
+          <Text style={styles.buttonText}>
+            {isProcessing ? 'Processing...' : 'Take Picture'}
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.button}
           onPress={() => navigation.goBack()}
-          style={styles.cancelButton}
-        />
+          disabled={isProcessing}
+        >
+          <Text style={styles.buttonText}>Cancel</Text>
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -135,11 +118,13 @@ const styles = StyleSheet.create({
   },
   camera: {
     flex: 1,
+    width: '100%',
   },
   overlay: {
     ...StyleSheet.absoluteFillObject,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: 'transparent',
   },
   scanFrame: {
     width: '80%',
@@ -157,49 +142,33 @@ const styles = StyleSheet.create({
     padding: 10,
     borderRadius: 5,
   },
-  controlsContainer: {
+  buttonContainer: {
     position: 'absolute',
     bottom: 30,
     left: 0,
     right: 0,
     flexDirection: 'column',
     alignItems: 'center',
-    paddingHorizontal: 20,
   },
-  captureButton: {
-    backgroundColor: '#3498db',
-    width: 250,
-    marginBottom: 15,
-  },
-  flipButton: {
-    backgroundColor: '#9b59b6',
-    width: 150,
-    marginBottom: 15,
-  },
-  cancelButton: {
-    backgroundColor: '#e74c3c',
-    width: 150,
-  },
-  centeredContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  permissionText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginTop: 20,
+  button: {
+    backgroundColor: '#fff',
+    padding: 15,
+    borderRadius: 10,
     marginBottom: 10,
+    minWidth: 200,
+    alignItems: 'center',
   },
-  permissionSubtext: {
-    fontSize: 14,
-    textAlign: 'center',
-    color: '#555',
-    marginBottom: 30,
+  buttonDisabled: {
+    opacity: 0.5,
   },
-  backButton: {
-    backgroundColor: '#3498db',
-    width: 150,
+  buttonText: {
+    fontSize: 16,
+    color: '#000',
+    fontWeight: 'bold',
+  },
+  text: {
+    color: '#fff',
+    fontSize: 18,
+    marginBottom: 20,
   },
 });
