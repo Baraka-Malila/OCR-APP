@@ -6,6 +6,9 @@ import { RootStackParamList } from '../navigation/AppNavigator';
 import ROUTES from '../constants/routes';
 import CustomButton from '../components/CustomButton';
 import { getAllOCRResults, deleteOCRResult, OCRResult } from '../services/storageService';
+import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '../context/ThemeContext';
+import { SPACING, FONT_SIZES } from '../constants/theme';
 
 type HistoryScreenNavigationProp = StackNavigationProp<
   RootStackParamList,
@@ -16,6 +19,7 @@ export default function HistoryScreen() {
   const [historyItems, setHistoryItems] = useState<OCRResult[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const navigation = useNavigation<HistoryScreenNavigationProp>();
+  const { colors } = useTheme();
 
   useEffect(() => {
     loadHistory();
@@ -72,35 +76,44 @@ export default function HistoryScreen() {
     );
   };
 
-  const renderItem = ({ item }: { item: OCRResult }) => (
-    <TouchableOpacity 
-      style={styles.historyItem}
-      onPress={() => handleItemPress(item)}
-    >
-      <Image source={{ uri: item.imageUri }} style={styles.thumbnail} />
-      
-      <View style={styles.itemContent}>
-        <Text style={styles.timestamp}>{formatDate(item.timestamp)}</Text>
-        <Text style={styles.textPreview} numberOfLines={2}>
-          {item.recognizedText.substring(0, 100)}
-          {item.recognizedText.length > 100 ? '...' : ''}
-        </Text>
-      </View>
-      
-      <TouchableOpacity 
-        style={styles.deleteButton}
-        onPress={() => handleDeleteItem(item.id)}
+  const renderItem = ({ item }: { item: OCRResult }) => {
+    const icon = item.type === 'scan' ? 'scan-outline' : 'image-outline';
+    
+    return (
+      <TouchableOpacity
+        style={[styles.historyItem, { backgroundColor: colors.surface }]}
+        onPress={() => handleItemPress(item)}
       >
-        <Text style={styles.deleteIcon}>×</Text>
+        <View style={styles.itemContent}>
+          <Ionicons name={icon} size={24} color={colors.primary} />
+          <View style={styles.itemDetails}>
+            <Text style={[styles.itemTitle, { color: colors.text }]}>
+              {item.title}
+            </Text>
+            <Text style={[styles.itemTime, { color: colors.textSecondary }]}>
+              {formatDate(item.timestamp)}
+            </Text>
+          </View>
+          <TouchableOpacity 
+            style={styles.deleteButton}
+            onPress={() => handleDeleteItem(item.id)}
+          >
+            <Text style={styles.deleteIcon}>×</Text>
+          </TouchableOpacity>
+        </View>
       </TouchableOpacity>
-    </TouchableOpacity>
-  );
+    );
+  };
 
   const renderEmptyList = () => (
     <View style={styles.emptyContainer}>
-      <Text style={styles.emptyText}>No scan history found</Text>
-      <Text style={styles.emptySubtext}>
-        Your scanned documents will appear here
+      <Ionicons
+        name="document-text-outline"
+        size={48}
+        color={colors.textSecondary}
+      />
+      <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+        No scan history yet
       </Text>
       <CustomButton
         title="New Scan"
@@ -112,11 +125,11 @@ export default function HistoryScreen() {
   );
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <FlatList
         data={historyItems}
         renderItem={renderItem}
-        keyExtractor={item => item.id}
+        keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
         ListEmptyComponent={isLoading ? null : renderEmptyList()}
       />
@@ -138,42 +151,30 @@ export default function HistoryScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
   },
   listContent: {
-    padding: 16,
-    flexGrow: 1,
+    padding: SPACING.md,
   },
   historyItem: {
-    flexDirection: 'row',
-    backgroundColor: 'white',
-    borderRadius: 10,
-    marginBottom: 12,
-    overflow: 'hidden',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
-  thumbnail: {
-    width: 80,
-    height: 80,
-    backgroundColor: '#f0f0f0',
+    borderRadius: 12,
+    marginBottom: SPACING.sm,
+    padding: SPACING.md,
   },
   itemContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  itemDetails: {
     flex: 1,
-    padding: 12,
-    justifyContent: 'center',
+    marginLeft: SPACING.md,
   },
-  timestamp: {
-    fontSize: 12,
-    color: '#888',
-    marginBottom: 4,
+  itemTitle: {
+    fontSize: FONT_SIZES.md,
+    fontWeight: '500',
+    marginBottom: SPACING.xs,
   },
-  textPreview: {
-    fontSize: 14,
-    color: '#333',
+  itemTime: {
+    fontSize: FONT_SIZES.sm,
   },
   deleteButton: {
     padding: 8,
@@ -189,20 +190,11 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
-    minHeight: 300,
+    paddingVertical: SPACING.xxl,
   },
   emptyText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#888',
-    marginBottom: 8,
-  },
-  emptySubtext: {
-    fontSize: 14,
-    color: '#aaa',
-    textAlign: 'center',
-    marginBottom: 24,
+    fontSize: FONT_SIZES.lg,
+    marginTop: SPACING.md,
   },
   scanButton: {
     backgroundColor: '#3498db',

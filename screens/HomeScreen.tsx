@@ -1,111 +1,212 @@
-import React from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
+import React, { useState } from 'react';
+import { View, StyleSheet, TouchableOpacity, Text, Platform, Modal } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { StackNavigationProp } from '@react-navigation/stack';
-import { RootStackParamList } from '../navigation/AppNavigator';
-import ROUTES from '../constants/routes';
-import CustomButton from '../components/CustomButton';
+import { DrawerNavigationProp } from '@react-navigation/drawer';
+import * as ImagePicker from 'expo-image-picker';
+import { Camera } from 'expo-camera';
+import { useTheme } from '../context/ThemeContext';
+import { SPACING, FONT_SIZES } from '../constants/theme';
+import { RootDrawerParamList } from '../types/navigation';
+import { processImageWithOCR } from '../services/ocrService';
+import { optimizeImageForOCR } from '../utils/imageUtils';
+import ScanIllustration from '../assets/scan-illustration.svg';
 
-type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList, typeof ROUTES.HOME>;
+type HomeScreenNavigationProp = DrawerNavigationProp<RootDrawerParamList, 'Home'>;
 
-export default function HomeScreen() {
+const HomeScreen = () => {
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [showOptions, setShowOptions] = useState(false);
   const navigation = useNavigation<HomeScreenNavigationProp>();
+  const { colors } = useTheme();
+
+  const handleImageProcessing = async (imageUri: string) => {
+    try {
+      setIsProcessing(true);
+      const optimizedImage = await optimizeImageForOCR(imageUri);
+      const recognizedText = await processImageWithOCR(optimizedImage);
+      
+      navigation.navigate('Result', {
+        imageUri: optimizedImage,
+        recognizedText,
+        timestamp: Date.now()
+      });
+    } catch (error) {
+      console.error('Error processing image:', error);
+    } finally {
+      setIsProcessing(false);
+      setShowOptions(false);
+    }
+  };
+
+  const handleImagePick = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: 'images',
+      allowsEditing: true,
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets[0].uri) {
+      await handleImageProcessing(result.assets[0].uri);
+    }
+  };
+
+  const handleCameraLaunch = async () => {
+    const { status } = await Camera.requestCameraPermissionsAsync();
+    if (status === 'granted') {
+      setShowOptions(false);
+      navigation.navigate('CameraScan');
+    }
+  };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.headerContainer}>
-        <Image 
-          source={require('../assets/ocr-icon.png')} 
-          style={styles.logo}
-          // If the image doesn't exist yet, you'll need to add it to your assets folder
-          // or replace with a different image
-        />
-        <Text style={styles.title}>OCR Scanner</Text>
-        <Text style={styles.subtitle}>Convert images to text instantly</Text>
-      </View>
-
-      <View style={styles.buttonContainer}>
-        <CustomButton 
-          title="Scan Document" 
-          icon="camera"
-          onPress={() => navigation.navigate(ROUTES.CAMERA_SCAN)}
-          style={styles.primaryButton}
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={styles.content}>
+        <ScanIllustration
+          width="100%"
+          height={300}
+          style={styles.illustration}
         />
         
-        <CustomButton 
-          title="Upload Image" 
-          icon="image"
-          onPress={() => navigation.navigate(ROUTES.UPLOAD)}
-          style={styles.secondaryButton}
-        />
-        
-        <CustomButton 
-          title="View History" 
-          icon="time-outline"
-          onPress={() => navigation.navigate(ROUTES.HISTORY)}
-          style={styles.tertiaryButton}
-        />
+        <Text style={[styles.instructionText, { color: colors.text }]}>
+          Please select an image using the button{'\n'}below to recognize the text.
+        </Text>
       </View>
 
-      <View style={styles.footer}>
-        <Text style={styles.footerText}>Powered by OCR Technology</Text>
-      </View>
+      {isProcessing && (
+        <View style={styles.processingOverlay}>
+          <Text style={[styles.processingText, { color: colors.text }]}>
+            Processing image...
+          </Text>
+        </View>
+      )}
+
+      <TouchableOpacity
+        style={[styles.actionButton, { backgroundColor: colors.primary }]}
+        onPress={() => setShowOptions(true)}
+        disabled={isProcessing}
+      >
+        <Ionicons name="add" size={24} color="#FFFFFF" />
+        <Text style={styles.buttonText}>NEW</Text>
+      </TouchableOpacity>
+
+      <Modal
+        visible={showOptions}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowOptions(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowOptions(false)}
+        >
+          <View style={[styles.optionsContainer, { backgroundColor: colors.surface }]}>
+            <TouchableOpacity
+              style={[styles.optionButton, { backgroundColor: colors.primary }]}
+              onPress={handleCameraLaunch}
+            >
+              <Ionicons name="camera" size={24} color="#FFFFFF" />
+              <Text style={styles.optionText}>Camera</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.optionButton, { backgroundColor: colors.primary }]}
+              onPress={handleImagePick}
+            >
+              <Ionicons name="images" size={24} color="#FFFFFF" />
+              <Text style={styles.optionText}>Gallery</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
-}
+};
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
-    padding: 20,
   },
-  headerContainer: {
-    alignItems: 'center',
-    marginTop: 40,
-    marginBottom: 60,
-  },
-  logo: {
-    width: 100,
-    height: 100,
-    resizeMode: 'contain',
-    marginBottom: 16,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
-  },
-  buttonContainer: {
+  content: {
     flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: SPACING.lg,
+  },
+  illustration: {
+    marginBottom: SPACING.xl,
+  },
+  instructionText: {
+    fontSize: FONT_SIZES.md,
+    textAlign: 'center',
+    lineHeight: 24,
+  },
+  actionButton: {
+    position: 'absolute',
+    bottom: SPACING.xl,
+    right: SPACING.xl,
+    width: 100,
+    height: 40,
+    borderRadius: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.xs,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.25,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 5,
+      },
+    }),
+  },
+  buttonText: {
+    color: '#FFFFFF',
+    fontSize: FONT_SIZES.md,
+    fontWeight: '600',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  optionsContainer: {
+    padding: SPACING.lg,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    gap: SPACING.md,
+  },
+  optionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: SPACING.md,
+    borderRadius: 12,
+    gap: SPACING.sm,
+  },
+  optionText: {
+    color: '#FFFFFF',
+    fontSize: FONT_SIZES.md,
+    fontWeight: '500',
+  },
+  processingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
     alignItems: 'center',
-    width: '100%',
   },
-  primaryButton: {
-    backgroundColor: '#3498db',
-    marginBottom: 16,
-  },
-  secondaryButton: {
-    backgroundColor: '#2ecc71',
-    marginBottom: 16,
-  },
-  tertiaryButton: {
-    backgroundColor: '#9b59b6',
-  },
-  footer: {
-    marginTop: 20,
-    alignItems: 'center',
-    paddingBottom: 10,
-  },
-  footerText: {
-    color: '#888',
-    fontSize: 12,
+  processingText: {
+    fontSize: FONT_SIZES.lg,
+    fontWeight: '600',
   },
 });
+
+export default HomeScreen;

@@ -1,9 +1,20 @@
 const { getDefaultConfig } = require('expo/metro-config');
 
-const config = getDefaultConfig(__dirname);
+module.exports = (() => {
+  const config = getDefaultConfig(__dirname);
 
-// Add any custom Metro config here if needed
-config.transformer.minifierPath = require.resolve('metro-minify-terser');
-config.resolver.sourceExts = [...config.resolver.sourceExts, 'cjs'];
+  const { transformer, resolver } = config;
 
-module.exports = config;
+  config.transformer = {
+    ...transformer,
+    babelTransformerPath: require.resolve('react-native-svg-transformer'),
+  };
+
+  config.resolver = {
+    ...resolver,
+    assetExts: resolver.assetExts.filter((ext) => ext !== 'svg'),
+    sourceExts: [...resolver.sourceExts, 'svg'],
+  };
+
+  return config;
+})();

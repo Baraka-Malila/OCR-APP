@@ -1,26 +1,25 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, Alert, ActivityIndicator } from 'react-native';
-import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
+import React, { useRef, useState, useEffect } from 'react';
+import { View, StyleSheet, TouchableOpacity, Text, Platform, Alert } from 'react-native';
+import { CameraView, useCameraPermissions } from 'expo-camera';
+import type { CameraType } from 'expo-camera';
 import { useNavigation } from '@react-navigation/native';
-import { StackNavigationProp } from '@react-navigation/stack';
-import * as ImageManipulator from 'expo-image-manipulator';
-import { RootStackParamList } from '../navigation/AppNavigator';
-import ROUTES from '../constants/routes';
-import CustomButton from '../components/CustomButton';
+import { DrawerNavigationProp } from '@react-navigation/drawer';
+import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '../context/ThemeContext';
+import { SPACING, FONT_SIZES } from '../constants/theme';
+import { RootDrawerParamList } from '../types/navigation';
 import { processImageWithOCR } from '../services/ocrService';
 import { optimizeImageForOCR } from '../utils/imageUtils';
 
-type CameraScanScreenNavigationProp = StackNavigationProp<
-  RootStackParamList,
-  typeof ROUTES.CAMERA_SCAN
->;
+type CameraScanScreenNavigationProp = DrawerNavigationProp<RootDrawerParamList, 'CameraScan'>;
 
-export default function CameraScanScreen() {
+const CameraScanScreen = () => {
   const [permission, requestPermission] = useCameraPermissions();
-  const [type, setType] = useState<CameraType>('back');
   const [isCapturing, setIsCapturing] = useState(false);
-  const cameraRef = useRef<any>(null);
+  const [facing, setFacing] = useState<CameraType>('back');
+  const cameraRef = useRef<CameraView>(null);
   const navigation = useNavigation<CameraScanScreenNavigationProp>();
+  const { colors } = useTheme();
 
   useEffect(() => {
     requestPermission();
@@ -30,26 +29,22 @@ export default function CameraScanScreen() {
     if (cameraRef.current && !isCapturing) {
       try {
         setIsCapturing(true);
-        const photo = await cameraRef.current.takePictureAsync({ quality: 1 });
-        
-        // Optimize image for OCR processing
+        const photo = await cameraRef.current.takePictureAsync({
+          quality: 1,
+          skipProcessing: true,
+        });
+
         const optimizedImage = await optimizeImageForOCR(photo.uri);
-        
-        // Process the image with OCR
         const recognizedText = await processImageWithOCR(optimizedImage);
-        
-        // Navigate to result screen with data
-        navigation.navigate(ROUTES.RESULT, {
+
+        navigation.navigate('Result', {
           imageUri: optimizedImage,
           recognizedText,
-          timestamp: Date.now()
+          timestamp: Date.now(),
         });
       } catch (error) {
         console.error('Error capturing image:', error);
-        Alert.alert(
-          'Capture Failed', 
-          'There was a problem capturing the image. Please try again.'
-        );
+        Alert.alert('Error', 'Failed to capture image. Please try again.');
       } finally {
         setIsCapturing(false);
       }
@@ -57,81 +52,83 @@ export default function CameraScanScreen() {
   };
 
   const flipCamera = () => {
-    setType(type === 'back' ? 'front' : 'back');
+    setFacing(facing === 'back' ? 'front' : 'back');
   };
 
   if (!permission) {
     return (
-      <View style={styles.centeredContainer}>
-        <ActivityIndicator size="large" color="#3498db" />
-        <Text style={styles.permissionText}>Requesting camera permission...</Text>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <Text style={[styles.permissionText, { color: colors.text }]}>
+          Camera permissions are still loading...
+        </Text>
       </View>
     );
   }
 
   if (!permission.granted) {
     return (
-      <View style={styles.centeredContainer}>
-        <Text style={styles.permissionText}>No access to camera</Text>
-        <Text style={styles.permissionSubtext}>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <Text style={[styles.permissionText, { color: colors.text }]}>
           Camera permission is required to use this feature.
         </Text>
-        <CustomButton
-          title="Go Back"
-          onPress={() => navigation.goBack()}
-          style={styles.backButton}
-        />
+        <TouchableOpacity
+          style={[styles.permissionButton, { backgroundColor: colors.primary }]}
+          onPress={requestPermission}
+        >
+          <Text style={styles.permissionButtonText}>Grant Permission</Text>
+        </TouchableOpacity>
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      <CameraView 
-        ref={cameraRef} 
-        style={styles.camera} 
-        facing={type}
-        ratio="4:3"
-      />
-      
-      <View style={styles.overlay}>
-        <View style={styles.scanFrame} />
-        <Text style={styles.instructionText}>
-          Position document within the frame
-        </Text>
-      </View>
-      
-      <View style={styles.controlsContainer}>
-        <CustomButton
-          title="Flip Camera"
-          icon="camera-reverse"
-          onPress={flipCamera}
-          style={styles.flipButton}
-        />
-        
-        <CustomButton
-          title={isCapturing ? "Processing..." : "Capture Document"}
-          icon={isCapturing ? "hourglass" : "scan"}
-          onPress={takePicture}
-          disabled={isCapturing}
-          style={styles.captureButton}
-        />
-        
-        <CustomButton
-          title="Cancel"
-          icon="close-circle"
-          onPress={() => navigation.goBack()}
-          style={styles.cancelButton}
-        />
-      </View>
+      <CameraView
+        ref={cameraRef}
+        style={styles.camera}
+        facing={facing}
+      >
+        <View style={styles.overlay}>
+          <View style={styles.scanFrame} />
+          <Text style={styles.instructionText}>
+            Position document within the frame
+          </Text>
+        </View>
+
+        <View style={styles.controls}>
+          <TouchableOpacity
+            style={[styles.controlButton, { backgroundColor: colors.primary }]}
+            onPress={flipCamera}
+          >
+            <Ionicons name="camera-reverse" size={24} color="#FFFFFF" />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.captureButton, { backgroundColor: colors.primary }]}
+            onPress={takePicture}
+            disabled={isCapturing}
+          >
+            <View style={styles.captureOuter}>
+              <View style={[styles.captureInner, { backgroundColor: '#FFFFFF' }]} />
+            </View>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.controlButton, { backgroundColor: colors.primary }]}
+            onPress={() => navigation.goBack()}
+          >
+            <Ionicons name="close" size={24} color="#FFFFFF" />
+          </TouchableOpacity>
+        </View>
+      </CameraView>
     </View>
   );
-}
+};
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: 'black',
+    backgroundColor: '#000',
   },
   camera: {
     flex: 1,
@@ -145,61 +142,81 @@ const styles = StyleSheet.create({
     width: '80%',
     height: '50%',
     borderWidth: 2,
-    borderColor: 'white',
-    borderRadius: 10,
+    borderColor: '#FFFFFF',
+    borderRadius: 12,
   },
   instructionText: {
-    color: 'white',
-    marginTop: 20,
-    fontSize: 16,
+    color: '#FFFFFF',
+    fontSize: FONT_SIZES.md,
+    marginTop: SPACING.lg,
     textAlign: 'center',
     backgroundColor: 'rgba(0,0,0,0.5)',
-    padding: 10,
-    borderRadius: 5,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    borderRadius: 8,
   },
-  controlsContainer: {
+  controls: {
     position: 'absolute',
-    bottom: 30,
+    bottom: SPACING.xl,
     left: 0,
     right: 0,
-    flexDirection: 'column',
+    flexDirection: 'row',
+    justifyContent: 'space-around',
     alignItems: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: SPACING.lg,
   },
-  captureButton: {
-    backgroundColor: '#3498db',
-    width: 250,
-    marginBottom: 15,
-  },
-  flipButton: {
-    backgroundColor: '#9b59b6',
-    width: 150,
-    marginBottom: 15,
-  },
-  cancelButton: {
-    backgroundColor: '#e74c3c',
-    width: 150,
-  },
-  centeredContainer: {
-    flex: 1,
+  controlButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.25,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 5,
+      },
+    }),
+  },
+  captureButton: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  captureOuter: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: 'rgba(255,255,255,0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  captureInner: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
   },
   permissionText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginTop: 20,
-    marginBottom: 10,
-  },
-  permissionSubtext: {
-    fontSize: 14,
+    fontSize: FONT_SIZES.md,
     textAlign: 'center',
-    color: '#555',
-    marginBottom: 30,
+    marginBottom: SPACING.lg,
   },
-  backButton: {
-    backgroundColor: '#3498db',
-    width: 150,
+  permissionButton: {
+    padding: SPACING.md,
+    borderRadius: 8,
+  },
+  permissionButtonText: {
+    color: '#FFFFFF',
+    fontSize: FONT_SIZES.md,
+    fontWeight: '500',
   },
 });
+
+export default CameraScanScreen;

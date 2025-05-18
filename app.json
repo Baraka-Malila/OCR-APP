@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "ocr-app",
-    "slug": "ocr-app",
+    "name": "OCRsnap",
+    "slug": "ocrsnap",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",

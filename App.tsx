@@ -1,11 +1,16 @@
 import React from 'react';
-import AppNavigator from './navigation/AppNavigator';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
+import { ThemeProvider } from './context/ThemeContext';
+import { AppNavigator } from './navigation/AppNavigator';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 export default function App() {
   return (
-    <SafeAreaProvider>
-      <AppNavigator />
-    </SafeAreaProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <ThemeProvider>
+        <StatusBar style="auto" />
+        <AppNavigator />
+      </ThemeProvider>
+    </GestureHandlerRootView>
   );
 }
