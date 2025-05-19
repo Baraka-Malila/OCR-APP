@@ -4,6 +4,7 @@ import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import ROUTES from '../constants/routes';
+import { ScreenTemplate } from '../components/ScreenTemplate';
 import CustomButton from '../components/CustomButton';
 import { getAllOCRResults, deleteOCRResult, OCRResult } from '../services/storageService';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,196 +16,133 @@ type HistoryScreenNavigationProp = StackNavigationProp<
   typeof ROUTES.HISTORY
 >;
 
-export default function HistoryScreen() {
-  const [historyItems, setHistoryItems] = useState<OCRResult[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const navigation = useNavigation<HistoryScreenNavigationProp>();
+const HistoryScreen = () => {
   const { colors } = useTheme();
+  const [history, setHistory] = useState<OCRResult[]>([]);
+  const navigation = useNavigation<HistoryScreenNavigationProp>();
 
   useEffect(() => {
     loadHistory();
   }, []);
 
   const loadHistory = async () => {
-    try {
-      setIsLoading(true);
-      const results = await getAllOCRResults();
-      // Sort by timestamp (newest first)
-      results.sort((a, b) => b.timestamp - a.timestamp);
-      setHistoryItems(results);
-    } catch (error) {
-      console.error('Error loading history:', error);
-      Alert.alert('Error', 'Failed to load scan history');
-    } finally {
-      setIsLoading(false);
-    }
+    const results = await getAllOCRResults();
+    setHistory(results.sort((a, b) => b.timestamp - a.timestamp));
   };
 
-  const formatDate = (timestamp: number): string => {
-    return new Date(timestamp).toLocaleDateString() + ' ' + 
-           new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  };
-
-  const handleItemPress = (item: OCRResult) => {
-    navigation.navigate(ROUTES.RESULT, {
-      imageUri: item.imageUri,
-      recognizedText: item.recognizedText,
-      timestamp: item.timestamp
-    });
-  };
-
-  const handleDeleteItem = async (id: string) => {
+  const handleDelete = async (id: string) => {
     Alert.alert(
       'Delete Item',
-      'Are you sure you want to delete this scan?',
+      'Are you sure you want to delete this item?',
       [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Delete', 
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Delete',
           style: 'destructive',
           onPress: async () => {
-            try {
-              await deleteOCRResult(id);
-              setHistoryItems(historyItems.filter(item => item.id !== id));
-            } catch (error) {
-              console.error('Error deleting item:', error);
-              Alert.alert('Error', 'Failed to delete item');
-            }
-          }
-        }
-      ]
+            await deleteOCRResult(id);
+            loadHistory();
+          },
+        },
+      ],
     );
   };
 
-  const renderItem = ({ item }: { item: OCRResult }) => {
-    const icon = item.type === 'scan' ? 'scan-outline' : 'image-outline';
-    
-    return (
+  const renderItem = ({ item }: { item: OCRResult }) => (
+    <TouchableOpacity
+      style={[styles.historyItem, { backgroundColor: colors.background }]}
+      onPress={() => navigation.navigate('Result', {
+        imageUri: item.imageUri,
+        recognizedText: item.text,
+        timestamp: item.timestamp,
+      })}
+    >
+      <Image source={{ uri: item.imageUri }} style={styles.thumbnail} />
+      <View style={styles.itemContent}>
+        <Text style={[styles.timestamp, { color: colors.textSecondary }]}>
+          {new Date(item.timestamp).toLocaleString()}
+        </Text>
+        <Text 
+          style={[styles.preview, { color: colors.text }]}
+          numberOfLines={2}
+        >
+          {item.text}
+        </Text>
+      </View>
       <TouchableOpacity
-        style={[styles.historyItem, { backgroundColor: colors.surface }]}
-        onPress={() => handleItemPress(item)}
+        style={styles.deleteButton}
+        onPress={() => handleDelete(item.id)}
       >
-        <View style={styles.itemContent}>
-          <Ionicons name={icon} size={24} color={colors.primary} />
-          <View style={styles.itemDetails}>
-            <Text style={[styles.itemTitle, { color: colors.text }]}>
-              {item.title}
-            </Text>
-            <Text style={[styles.itemTime, { color: colors.textSecondary }]}>
-              {formatDate(item.timestamp)}
-            </Text>
-          </View>
-          <TouchableOpacity 
-            style={styles.deleteButton}
-            onPress={() => handleDeleteItem(item.id)}
-          >
-            <Text style={styles.deleteIcon}>×</Text>
-          </TouchableOpacity>
-        </View>
+        <Ionicons name="trash-outline" size={24} color={colors.error} />
       </TouchableOpacity>
-    );
-  };
-
-  const renderEmptyList = () => (
-    <View style={styles.emptyContainer}>
-      <Ionicons
-        name="document-text-outline"
-        size={48}
-        color={colors.textSecondary}
-      />
-      <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
-        No scan history yet
-      </Text>
-      <CustomButton
-        title="New Scan"
-        icon="camera"
-        onPress={() => navigation.navigate(ROUTES.CAMERA_SCAN)}
-        style={styles.scanButton}
-      />
-    </View>
+    </TouchableOpacity>
   );
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <FlatList
-        data={historyItems}
-        renderItem={renderItem}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.listContent}
-        ListEmptyComponent={isLoading ? null : renderEmptyList()}
-      />
-      
-      {historyItems.length > 0 && (
-        <View style={styles.buttonContainer}>
-          <CustomButton
-            title="New Scan"
-            icon="add-circle"
-            onPress={() => navigation.navigate(ROUTES.CAMERA_SCAN)}
-            style={styles.newScanButton}
-          />
+    <ScreenTemplate title="View History" isStandalone>
+      {history.length > 0 ? (
+        <FlatList
+          data={history}
+          renderItem={renderItem}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.listContainer}
+        />
+      ) : (
+        <View style={styles.emptyContainer}>
+          <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+            No scan history yet
+          </Text>
         </View>
       )}
-    </View>
+    </ScreenTemplate>
   );
-}
+};
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  listContent: {
+  listContainer: {
     padding: SPACING.md,
   },
   historyItem: {
-    borderRadius: 12,
-    marginBottom: SPACING.sm,
+    flexDirection: 'row',
     padding: SPACING.md,
+    marginBottom: SPACING.md,
+    borderRadius: 12,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  thumbnail: {
+    width: 60,
+    height: 60,
+    borderRadius: 8,
+    marginRight: SPACING.md,
   },
   itemContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  itemDetails: {
     flex: 1,
-    marginLeft: SPACING.md,
   },
-  itemTitle: {
-    fontSize: FONT_SIZES.md,
-    fontWeight: '500',
+  timestamp: {
+    fontSize: FONT_SIZES.sm,
     marginBottom: SPACING.xs,
   },
-  itemTime: {
-    fontSize: FONT_SIZES.sm,
+  preview: {
+    fontSize: FONT_SIZES.md,
   },
   deleteButton: {
-    padding: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  deleteIcon: {
-    fontSize: 24,
-    color: '#e74c3c',
-    fontWeight: 'bold',
+    padding: SPACING.xs,
   },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: SPACING.xxl,
   },
   emptyText: {
     fontSize: FONT_SIZES.lg,
-    marginTop: SPACING.md,
-  },
-  scanButton: {
-    backgroundColor: '#3498db',
-  },
-  buttonContainer: {
-    padding: 16,
-    paddingBottom: 24,
-    alignItems: 'center',
-  },
-  newScanButton: {
-    backgroundColor: '#3498db',
   },
 });
+
+export default HistoryScreen;

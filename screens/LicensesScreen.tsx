@@ -29,52 +29,58 @@ const LicensesScreen = () => {
   const { colors } = useTheme();
 
   return (
-    <ScreenTemplate title="Open Source Licenses">
-      <Text style={[styles.description, { color: colors.textSecondary }]}>
-        This app is built using open source software. We are grateful to the
-        developers who have made their work available to the community.
-      </Text>
+    <ScreenTemplate title="Open Source Licenses" isStandalone>
+      <ScrollView style={styles.container}>
+        <Text style={[styles.description, { color: colors.textSecondary }]}>
+          This app is built using open source software. We are grateful to the
+          developers who have made their work available to the community.
+        </Text>
 
-      <LicenseItem
-        name="react-native"
-        version="0.79.2"
-        license="MIT License"
-      />
-      <LicenseItem
-        name="@react-navigation/native"
-        version="7.1.9"
-        license="MIT License"
-      />
-      <LicenseItem
-        name="@react-navigation/drawer"
-        version="7.3.2"
-        license="MIT License"
-      />
-      <LicenseItem
-        name="expo"
-        version="53.0.9"
-        license="MIT License"
-      />
-      <LicenseItem
-        name="expo-camera"
-        version="16.1.6"
-        license="MIT License"
-      />
-      <LicenseItem
-        name="@expo/vector-icons"
-        version="14.1.0"
-        license="MIT License"
-      />
-      <LicenseItem
-        name="react-native-reanimated"
-        version="3.8.0"
-        license="MIT License"
-      />
+        <LicenseItem
+          name="react-native"
+          version="0.79.2"
+          license="MIT License"
+        />
+        <LicenseItem
+          name="@react-navigation/native"
+          version="7.1.9"
+          license="MIT License"
+        />
+        <LicenseItem
+          name="@react-navigation/drawer"
+          version="7.3.2"
+          license="MIT License"
+        />
+        <LicenseItem
+          name="expo"
+          version="53.0.9"
+          license="MIT License"
+        />
+        <LicenseItem
+          name="expo-camera"
+          version="16.1.6"
+          license="MIT License"
+        />
+        <LicenseItem
+          name="@expo/vector-icons"
+          version="14.1.0"
+          license="MIT License"
+        />
+        <LicenseItem
+          name="react-native-reanimated"
+          version="3.8.0"
+          license="MIT License"
+        />
+      </ScrollView>
     </ScreenTemplate>
   );
 };
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    padding: SPACING.lg,
+  },
   description: {
     fontSize: FONT_SIZES.md,
     marginBottom: SPACING.xl,

@@ -1,5 +1,7 @@
 export type RootStackParamList = {
-  Onboarding: undefined;
+  Onboarding: {
+    initialSlide?: number;
+  };
   MainApp: {
     screen?: keyof RootDrawerParamList;
     params?: {
@@ -22,8 +24,12 @@ export type RootDrawerParamList = {
   Premium: {
     fromOnboarding?: boolean;
   };
-  Privacy: undefined;
-  Terms: undefined;
+  Privacy: {
+    fromOnboarding?: boolean;
+  };
+  Terms: {
+    fromOnboarding?: boolean;
+  };
   Licenses: undefined;
 };
 

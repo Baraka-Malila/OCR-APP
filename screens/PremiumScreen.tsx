@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform, Linking } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { ScreenTemplate } from '../components/ScreenTemplate';
 import { useTheme } from '../context/ThemeContext';
@@ -104,8 +104,17 @@ const PremiumScreen = () => {
     }
   };
 
+  const openLegalDocument = (type: 'terms' | 'privacy') => {
+    const baseUrl = 'https://baraka-malila.github.io/OCR-APP-LEGAL';
+    const url = type === 'terms' 
+      ? `${baseUrl}/terms-of-service`
+      : `${baseUrl}/privacy-policy`;
+    
+    Linking.openURL(url);
+  };
+
   return (
-    <ScreenTemplate title="OCR Premium">
+    <ScreenTemplate title="OCR Premium" isStandalone>
       <ScrollView style={styles.container}>
         <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
           Unlock Premium Features
@@ -158,7 +167,7 @@ const PremiumScreen = () => {
           horizontal 
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.pricingContainer}
-          snapToInterval={240} // Adjusted for new card width
+          snapToInterval={240}
           decelerationRate="fast"
           onMomentumScrollEnd={(e) => {
             const page = Math.round(e.nativeEvent.contentOffset.x / 240);
@@ -229,9 +238,23 @@ const PremiumScreen = () => {
         </TouchableOpacity>
 
         <Text style={[styles.terms, { color: colors.textSecondary }]}>
+          By purchasing, you agree to our{' '}
+          <Text 
+            style={[styles.link, { color: colors.primary }]}
+            onPress={() => openLegalDocument('terms')}
+          >
+            Terms of Service
+          </Text>
+          {' '}and{' '}
+          <Text 
+            style={[styles.link, { color: colors.primary }]}
+            onPress={() => openLegalDocument('privacy')}
+          >
+            Privacy Policy
+          </Text>
           {selectedPlan === 'lifetime' 
-            ? 'By purchasing, you agree to our Terms of Service. This is a one-time payment with lifetime access.'
-            : 'By purchasing, you agree to our Terms of Service. Subscription will auto-renew unless canceled 24 hours before the renewal date.'}
+            ? '. This is a one-time payment with lifetime access.'
+            : '. Subscription will auto-renew unless canceled 24 hours before the renewal date.'}
         </Text>
       </ScrollView>
     </ScreenTemplate>
@@ -303,7 +326,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -12,
     left: '50%',
-    transform: [{ translateX: -45 }], // Half of the approximate badge width
+    transform: [{ translateX: -45 }],
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.xs,
     backgroundColor: '#FF3B30',
@@ -391,6 +414,9 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: FONT_SIZES.xs,
     fontWeight: '500',
+  },
+  link: {
+    textDecorationLine: 'underline',
   },
 });
 

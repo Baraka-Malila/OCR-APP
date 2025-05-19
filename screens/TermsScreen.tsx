@@ -1,77 +1,97 @@
 import React from 'react';
-import { Text, StyleSheet } from 'react-native';
+import { StyleSheet, View, TouchableOpacity, Text, Linking } from 'react-native';
 import { ScreenTemplate } from '../components/ScreenTemplate';
 import { useTheme } from '../context/ThemeContext';
 import { SPACING, FONT_SIZES } from '../constants/theme';
+import { Ionicons } from '@expo/vector-icons';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { RootDrawerParamList, RootStackParamList } from '../types/navigation';
+import { CompositeNavigationProp } from '@react-navigation/native';
+import { DrawerNavigationProp } from '@react-navigation/drawer';
+import { StackNavigationProp } from '@react-navigation/stack';
+
+type TermsScreenNavigationProp = CompositeNavigationProp<
+  DrawerNavigationProp<RootDrawerParamList, 'Terms'>,
+  StackNavigationProp<RootStackParamList, 'MainApp' | 'Onboarding'>
+>;
+
+type TermsScreenRouteProp = RouteProp<RootDrawerParamList, 'Terms'>;
 
 const TermsScreen = () => {
   const { colors } = useTheme();
+  const navigation = useNavigation<TermsScreenNavigationProp>();
+  const route = useRoute<TermsScreenRouteProp>();
+  const fromOnboarding = route.params?.fromOnboarding;
+
+  const openTermsOfService = () => {
+    Linking.openURL('https://baraka-malila.github.io/OCR-APP-LEGAL/terms-of-service');
+  };
+
+  const handleBack = () => {
+    if (fromOnboarding) {
+      // Navigate back to Onboarding and trigger scroll to last slide
+      navigation.getParent()?.navigate('Onboarding', {
+        initialSlide: 3  // Index of the "Ready to Start?" slide
+      });
+    } else {
+      // Normal back navigation for regular app usage
+      navigation.goBack();
+    }
+  };
 
   return (
-    <ScreenTemplate title="Terms of Service">
-      <Text style={[styles.paragraph, { color: colors.text }]}>
-        Last updated: May 2024
-      </Text>
-
-      <Text style={[styles.sectionTitle, { color: colors.text }]}>
-        1. Acceptance of Terms
-      </Text>
-      <Text style={[styles.paragraph, { color: colors.text }]}>
-        By accessing or using the OCR app, you agree to be bound by these Terms of
-        Service and all applicable laws and regulations. If you do not agree with
-        any of these terms, you are prohibited from using the app.
-      </Text>
-
-      <Text style={[styles.sectionTitle, { color: colors.text }]}>
-        2. Use License
-      </Text>
-      <Text style={[styles.paragraph, { color: colors.text }]}>
-        We grant you a limited, non-exclusive, non-transferable license to use the
-        OCR app for personal or business purposes. This license does not include
-        the right to modify, distribute, or create derivative works of the app.
-      </Text>
-
-      <Text style={[styles.sectionTitle, { color: colors.text }]}>
-        3. Limitations
-      </Text>
-      <Text style={[styles.paragraph, { color: colors.text }]}>
-        You may not use the app for any illegal purposes or to violate any laws in
-        your jurisdiction. You may not use the app to infringe upon any
-        intellectual property rights or privacy rights of others.
-      </Text>
-
-      <Text style={[styles.sectionTitle, { color: colors.text }]}>
-        4. Premium Features
-      </Text>
-      <Text style={[styles.paragraph, { color: colors.text }]}>
-        Some features of the app are available only to premium subscribers.
-        Premium subscriptions are billed on a recurring basis. You can cancel
-        your subscription at any time through your app store account settings.
-      </Text>
-
-      <Text style={[styles.sectionTitle, { color: colors.text }]}>
-        5. Disclaimer
-      </Text>
-      <Text style={[styles.paragraph, { color: colors.text }]}>
-        The app is provided "as is" without any warranties, expressed or implied.
-        We do not guarantee the accuracy of OCR results and are not responsible
-        for any errors or omissions in the recognized text.
-      </Text>
+    <ScreenTemplate 
+      title="Terms of Service" 
+      isStandalone 
+      onBack={handleBack}
+    >
+      <View style={styles.container}>
+        <Text style={[styles.description, { color: colors.text }]}>
+          Please read our Terms of Service before using the app. By using our app, you agree to these terms.
+        </Text>
+        <TouchableOpacity 
+          style={[styles.button, { backgroundColor: colors.primary }]}
+          onPress={openTermsOfService}
+        >
+          <Ionicons name="open-outline" size={24} color="#FFFFFF" style={styles.icon} />
+          <Text style={styles.buttonText}>View Terms of Service</Text>
+        </TouchableOpacity>
+      </View>
     </ScreenTemplate>
   );
 };
 
 const styles = StyleSheet.create({
-  sectionTitle: {
+  container: {
+    flex: 1,
+    padding: SPACING.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  description: {
+    fontSize: FONT_SIZES.md,
+    textAlign: 'center',
+    marginBottom: SPACING.xl,
+    lineHeight: 24,
+  },
+  button: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: SPACING.lg,
+    borderRadius: 12,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  buttonText: {
+    color: '#FFFFFF',
     fontSize: FONT_SIZES.lg,
     fontWeight: '600',
-    marginTop: SPACING.xl,
-    marginBottom: SPACING.md,
   },
-  paragraph: {
-    fontSize: FONT_SIZES.md,
-    lineHeight: 24,
-    marginBottom: SPACING.md,
+  icon: {
+    marginRight: SPACING.md,
   },
 });
 

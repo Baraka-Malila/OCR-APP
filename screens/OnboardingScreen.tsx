@@ -1,6 +1,6 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, useWindowDimensions, Animated } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../types/navigation';
 import { useTheme } from '../context/ThemeContext';
@@ -10,6 +10,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { activatePremium } from '../services/premiumService';
 
 type OnboardingScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Onboarding'>;
+type OnboardingScreenRouteProp = RouteProp<RootStackParamList, 'Onboarding'>;
 
 interface OnboardingItem {
   id: string;
@@ -40,18 +41,27 @@ const onboardingData: OnboardingItem[] = [
   {
     id: '4',
     title: 'Ready to Start?',
-    description: 'Choose your preferred way to experience OCRsnap - start with a 3-day free trial or unlock all features instantly.',
+    description: 'Choose your preferred way to experience OCRsnap. By continuing, you agree to our Terms of Service and Privacy Policy.',
     icon: 'rocket',
   },
 ];
 
 const OnboardingScreen = () => {
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [hasAcceptedTerms, setHasAcceptedTerms] = useState(false);
   const flatListRef = useRef<FlatList>(null);
   const scrollX = useRef(new Animated.Value(0)).current;
   const { width } = useWindowDimensions();
   const navigation = useNavigation<OnboardingScreenNavigationProp>();
+  const route = useRoute<OnboardingScreenRouteProp>();
   const { colors } = useTheme();
+
+  // Handle initial slide from navigation params
+  useEffect(() => {
+    if (route.params?.initialSlide !== undefined) {
+      scrollTo(route.params.initialSlide);
+    }
+  }, [route.params?.initialSlide]);
 
   const viewableItemsChanged = useRef(({ viewableItems }: any) => {
     if (viewableItems[0]) {
@@ -68,6 +78,10 @@ const OnboardingScreen = () => {
   };
 
   const handleFinish = async (isPro: boolean) => {
+    if (!hasAcceptedTerms) {
+      return;
+    }
+    
     try {
       await AsyncStorage.setItem('hasSeenOnboarding', 'true');
       if (isPro) {
@@ -102,6 +116,15 @@ const OnboardingScreen = () => {
     }
   };
 
+  const openLegalDocument = (type: 'terms' | 'privacy') => {
+    navigation.navigate('MainApp', {
+      screen: type === 'terms' ? 'Terms' : 'Privacy',
+      params: {
+        fromOnboarding: true
+      }
+    });
+  };
+
   const renderItem = ({ item, index }: { item: OnboardingItem; index: number }) => {
     return (
       <View style={[styles.slide, { width }]}>
@@ -112,6 +135,36 @@ const OnboardingScreen = () => {
         <Text style={[styles.description, { color: colors.textSecondary }]}>
           {item.description}
         </Text>
+        {index === onboardingData.length - 1 && (
+          <View style={styles.termsContainer}>
+            <TouchableOpacity
+              style={styles.termsCheckbox}
+              onPress={() => setHasAcceptedTerms(!hasAcceptedTerms)}
+            >
+              <Ionicons
+                name={hasAcceptedTerms ? "checkbox" : "square-outline"}
+                size={24}
+                color={colors.primary}
+              />
+              <Text style={[styles.termsText, { color: colors.text }]}>
+                I agree to the{' '}
+                <Text
+                  style={[styles.termsLink, { color: colors.primary }]}
+                  onPress={() => openLegalDocument('terms')}
+                >
+                  Terms of Service
+                </Text>
+                {' '}and{' '}
+                <Text
+                  style={[styles.termsLink, { color: colors.primary }]}
+                  onPress={() => openLegalDocument('privacy')}
+                >
+                  Privacy Policy
+                </Text>
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
     );
   };
@@ -152,8 +205,33 @@ const OnboardingScreen = () => {
     );
   };
 
+  // Add getItemLayout function to calculate item positions
+  const getItemLayout = (_: any, index: number) => ({
+    length: width,
+    offset: width * index,
+    index,
+  });
+
+  // Handle scroll failures
+  const handleScrollToIndexFailed = (info: {
+    index: number;
+    highestMeasuredFrameIndex: number;
+    averageItemLength: number;
+  }) => {
+    const wait = new Promise(resolve => setTimeout(resolve, 500));
+    wait.then(() => {
+      if (flatListRef.current) {
+        flatListRef.current.scrollToIndex({
+          index: info.index,
+          animated: true,
+        });
+      }
+    });
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <Text style={[styles.appName, { color: colors.text }]}>OCRsnap</Text>
       <FlatList
         ref={flatListRef}
         data={onboardingData}
@@ -170,6 +248,8 @@ const OnboardingScreen = () => {
         onViewableItemsChanged={viewableItemsChanged}
         viewabilityConfig={viewConfig}
         scrollEventThrottle={32}
+        getItemLayout={getItemLayout}
+        onScrollToIndexFailed={handleScrollToIndexFailed}
       />
 
       <Paginator />
@@ -179,7 +259,7 @@ const OnboardingScreen = () => {
           <View style={styles.buttonContainer}>
             <TouchableOpacity
               style={[styles.button, styles.skipButton]}
-              onPress={() => handleFinish(false)}
+              onPress={() => scrollTo(onboardingData.length - 1)}
             >
               <Text style={[styles.buttonText, { color: colors.primary }]}>Skip</Text>
             </TouchableOpacity>
@@ -193,15 +273,31 @@ const OnboardingScreen = () => {
         ) : (
           <View style={styles.finalButtonContainer}>
             <TouchableOpacity
-              style={[styles.button, styles.proButton, { backgroundColor: colors.primary }]}
+              style={[
+                styles.button,
+                styles.proButton,
+                { 
+                  backgroundColor: colors.primary,
+                  opacity: hasAcceptedTerms ? 1 : 0.5
+                }
+              ]}
               onPress={() => handleFinish(true)}
+              disabled={!hasAcceptedTerms}
             >
               <Ionicons name="diamond" size={24} color="#FFFFFF" style={styles.buttonIcon} />
               <Text style={[styles.buttonText, { color: '#FFFFFF' }]}>Start Like a Pro</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.button, styles.trialButton, { borderColor: colors.primary }]}
+              style={[
+                styles.button,
+                styles.trialButton,
+                { 
+                  borderColor: colors.primary,
+                  opacity: hasAcceptedTerms ? 1 : 0.5
+                }
+              ]}
               onPress={() => handleFinish(false)}
+              disabled={!hasAcceptedTerms}
             >
               <Ionicons name="time" size={24} color={colors.primary} style={styles.buttonIcon} />
               <Text style={[styles.buttonText, { color: colors.primary }]}>Start Free Trial</Text>
@@ -219,6 +315,13 @@ const OnboardingScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  appName: {
+    fontSize: FONT_SIZES.xxl,
+    fontWeight: '700',
+    textAlign: 'center',
+    paddingTop: SPACING.xl * 2,
+    paddingBottom: SPACING.lg,
   },
   slide: {
     flex: 1,
@@ -244,6 +347,22 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZES.md,
     textAlign: 'center',
     lineHeight: 24,
+  },
+  termsContainer: {
+    marginTop: SPACING.xl,
+    width: '100%',
+  },
+  termsCheckbox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+  },
+  termsText: {
+    fontSize: FONT_SIZES.sm,
+    flex: 1,
+  },
+  termsLink: {
+    textDecorationLine: 'underline',
   },
   paginationContainer: {
     flexDirection: 'row',

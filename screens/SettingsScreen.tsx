@@ -8,7 +8,7 @@ const SettingsScreen = () => {
   const { colors, colorScheme, toggleColorScheme } = useTheme();
 
   return (
-    <ScreenTemplate title="Settings">
+    <ScreenTemplate title="Settings" isStandalone>
       <View style={styles.section}>
         <View style={styles.settingItem}>
           <Text style={[styles.settingLabel, { color: colors.text }]}>

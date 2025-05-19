@@ -1,68 +1,97 @@
 import React from 'react';
-import { Text, StyleSheet } from 'react-native';
+import { StyleSheet, View, TouchableOpacity, Text, Linking } from 'react-native';
 import { ScreenTemplate } from '../components/ScreenTemplate';
 import { useTheme } from '../context/ThemeContext';
 import { SPACING, FONT_SIZES } from '../constants/theme';
+import { Ionicons } from '@expo/vector-icons';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { RootDrawerParamList, RootStackParamList } from '../types/navigation';
+import { CompositeNavigationProp } from '@react-navigation/native';
+import { DrawerNavigationProp } from '@react-navigation/drawer';
+import { StackNavigationProp } from '@react-navigation/stack';
+
+type PrivacyScreenNavigationProp = CompositeNavigationProp<
+  DrawerNavigationProp<RootDrawerParamList, 'Privacy'>,
+  StackNavigationProp<RootStackParamList, 'MainApp' | 'Onboarding'>
+>;
+
+type PrivacyScreenRouteProp = RouteProp<RootDrawerParamList, 'Privacy'>;
 
 const PrivacyScreen = () => {
   const { colors } = useTheme();
+  const navigation = useNavigation<PrivacyScreenNavigationProp>();
+  const route = useRoute<PrivacyScreenRouteProp>();
+  const fromOnboarding = route.params?.fromOnboarding;
+
+  const openPrivacyPolicy = () => {
+    Linking.openURL('https://baraka-malila.github.io/OCR-APP-LEGAL/privacy-policy');
+  };
+
+  const handleBack = () => {
+    if (fromOnboarding) {
+      // Navigate back to Onboarding and trigger scroll to last slide
+      navigation.getParent()?.navigate('Onboarding', {
+        initialSlide: 3  // Index of the "Ready to Start?" slide
+      });
+    } else {
+      // Normal back navigation for regular app usage
+      navigation.goBack();
+    }
+  };
 
   return (
-    <ScreenTemplate title="Privacy Policy">
-      <Text style={[styles.paragraph, { color: colors.text }]}>
-        Last updated: May 2024
-      </Text>
-
-      <Text style={[styles.sectionTitle, { color: colors.text }]}>
-        1. Information We Collect
-      </Text>
-      <Text style={[styles.paragraph, { color: colors.text }]}>
-        We collect information that you provide directly to us when using the OCR app,
-        including scanned documents and images. We do not store your scanned content
-        on our servers unless you explicitly choose to use our cloud storage feature.
-      </Text>
-
-      <Text style={[styles.sectionTitle, { color: colors.text }]}>
-        2. How We Use Your Information
-      </Text>
-      <Text style={[styles.paragraph, { color: colors.text }]}>
-        We use the information we collect to provide and improve our OCR services,
-        develop new features, and protect our users. Your data is processed locally
-        on your device unless you opt to use cloud features.
-      </Text>
-
-      <Text style={[styles.sectionTitle, { color: colors.text }]}>
-        3. Data Security
-      </Text>
-      <Text style={[styles.paragraph, { color: colors.text }]}>
-        We implement appropriate technical and organizational measures to protect
-        your personal information against unauthorized or unlawful processing,
-        accidental loss, destruction, or damage.
-      </Text>
-
-      <Text style={[styles.sectionTitle, { color: colors.text }]}>
-        4. Your Rights
-      </Text>
-      <Text style={[styles.paragraph, { color: colors.text }]}>
-        You have the right to access, correct, or delete your personal information.
-        You can also choose to opt out of certain data collection features through
-        the app settings.
-      </Text>
+    <ScreenTemplate 
+      title="Privacy Policy" 
+      isStandalone
+      onBack={handleBack}
+    >
+      <View style={styles.container}>
+        <Text style={[styles.description, { color: colors.text }]}>
+          Read our Privacy Policy to understand how we collect, use, and protect your data.
+        </Text>
+        <TouchableOpacity 
+          style={[styles.button, { backgroundColor: colors.primary }]}
+          onPress={openPrivacyPolicy}
+        >
+          <Ionicons name="open-outline" size={24} color="#FFFFFF" style={styles.icon} />
+          <Text style={styles.buttonText}>View Privacy Policy</Text>
+        </TouchableOpacity>
+      </View>
     </ScreenTemplate>
   );
 };
 
 const styles = StyleSheet.create({
-  sectionTitle: {
+  container: {
+    flex: 1,
+    padding: SPACING.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  description: {
+    fontSize: FONT_SIZES.md,
+    textAlign: 'center',
+    marginBottom: SPACING.xl,
+    lineHeight: 24,
+  },
+  button: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: SPACING.lg,
+    borderRadius: 12,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  buttonText: {
+    color: '#FFFFFF',
     fontSize: FONT_SIZES.lg,
     fontWeight: '600',
-    marginTop: SPACING.xl,
-    marginBottom: SPACING.md,
   },
-  paragraph: {
-    fontSize: FONT_SIZES.md,
-    lineHeight: 24,
-    marginBottom: SPACING.md,
+  icon: {
+    marginRight: SPACING.md,
   },
 });
 
