@@ -9,19 +9,15 @@ type ThemeContextType = {
 };
 
 export const ThemeContext = createContext<ThemeContextType>({
-  colorScheme: 'light',
-  colors: useThemeColors('light'),
+  colorScheme: 'dark',
+  colors: useThemeColors('dark'),
   toggleColorScheme: () => {},
 });
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const systemColorScheme = useColorScheme();
-  const [colorScheme, setColorScheme] = useState<ColorSchemeName>(systemColorScheme);
+  const [colorScheme, setColorScheme] = useState<ColorSchemeName>('dark');
   const colors = useThemeColors(colorScheme);
-
-  useEffect(() => {
-    setColorScheme(systemColorScheme);
-  }, [systemColorScheme]);
 
   const toggleColorScheme = () => {
     setColorScheme(prev => (prev === 'dark' ? 'light' : 'dark'));

@@ -6,11 +6,13 @@ import { SPACING, FONT_SIZES } from '../constants/theme';
 type ScreenTemplateProps = {
   title: string;
   children?: React.ReactNode;
+  hideMenu?: boolean;
 };
 
 export const ScreenTemplate: React.FC<ScreenTemplateProps> = ({
   title,
   children,
+  hideMenu = false,
 }) => {
   const { colors } = useTheme();
 

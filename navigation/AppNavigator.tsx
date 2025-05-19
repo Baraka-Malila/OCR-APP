@@ -2,10 +2,10 @@ import React from 'react';
 import { TouchableOpacity, View, Text, StyleSheet, SafeAreaView, Platform, StatusBar } from 'react-native';
 import { createDrawerNavigator } from '@react-navigation/drawer';
 import { NavigationContainer } from '@react-navigation/native';
+import { createStackNavigator } from '@react-navigation/stack';
 import { DrawerContent } from '../components/DrawerContent';
 import { useTheme } from '../context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
 import { FONT_SIZES } from '../constants/theme';
 
 // Import your screens here
@@ -18,18 +18,23 @@ import LicensesScreen from '../screens/LicensesScreen';
 import ResultScreen from '../screens/ResultScreen';
 import HistoryScreen from '../screens/HistoryScreen';
 import CameraScanScreen from '../screens/CameraScanScreen';
+import OnboardingScreen from '../screens/OnboardingScreen';
 
 const Drawer = createDrawerNavigator();
+const Stack = createStackNavigator();
 
-const CustomHeader = ({ navigation }: { navigation: any }) => {
+const CustomHeader = ({ navigation, route }: { navigation: any; route: any }) => {
   const { colors } = useTheme();
+  const hideMenu = route.params?.hideMenu;
   
   return (
     <SafeAreaView style={{ backgroundColor: colors.background }}>
       <View style={[styles.headerContainer, { backgroundColor: colors.background }]}>
-        <TouchableOpacity onPress={() => navigation.toggleDrawer()}>
-          <Ionicons name="menu" size={24} color={colors.text} />
-        </TouchableOpacity>
+        {!hideMenu && (
+          <TouchableOpacity onPress={() => navigation.toggleDrawer()}>
+            <Ionicons name="menu" size={24} color={colors.text} />
+          </TouchableOpacity>
+        )}
         
         <Text style={[styles.headerTitle, { color: colors.text }]}>
           OCRsnap
@@ -43,37 +48,48 @@ const CustomHeader = ({ navigation }: { navigation: any }) => {
   );
 };
 
+const DrawerNavigator = () => {
+  const { colors } = useTheme();
+  
+  return (
+    <Drawer.Navigator
+      drawerContent={(props) => <DrawerContent {...props} />}
+      screenOptions={{
+        header: (props) => <CustomHeader {...props} />,
+        headerStyle: {
+          backgroundColor: colors.background,
+        },
+        headerTintColor: colors.text,
+        headerTitleStyle: {
+          fontWeight: '600',
+        },
+        drawerStyle: {
+          backgroundColor: colors.background,
+        },
+      }}
+    >
+      <Drawer.Screen name="Home" component={HomeScreen} />
+      <Drawer.Screen name="History" component={HistoryScreen} options={{ title: 'View History' }} />
+      <Drawer.Screen name="Result" component={ResultScreen} options={{ title: 'OCR Result' }} />
+      <Drawer.Screen name="CameraScan" component={CameraScanScreen} options={{ title: 'Scan Document' }} />
+      <Drawer.Screen name="Settings" component={SettingsScreen} />
+      <Drawer.Screen name="Premium" component={PremiumScreen} />
+      <Drawer.Screen name="Privacy" component={PrivacyScreen} />
+      <Drawer.Screen name="Terms" component={TermsScreen} />
+      <Drawer.Screen name="Licenses" component={LicensesScreen} />
+    </Drawer.Navigator>
+  );
+};
+
 export const AppNavigator = () => {
   const { colors } = useTheme();
 
   return (
     <NavigationContainer>
-      <Drawer.Navigator
-        drawerContent={(props) => <DrawerContent {...props} />}
-        screenOptions={{
-          header: (props) => <CustomHeader {...props} />,
-          headerStyle: {
-            backgroundColor: colors.background,
-          },
-          headerTintColor: colors.text,
-          headerTitleStyle: {
-            fontWeight: '600',
-          },
-          drawerStyle: {
-            backgroundColor: colors.background,
-          },
-        }}
-      >
-        <Drawer.Screen name="Home" component={HomeScreen} />
-        <Drawer.Screen name="History" component={HistoryScreen} options={{ title: 'View History' }} />
-        <Drawer.Screen name="Result" component={ResultScreen} options={{ title: 'OCR Result' }} />
-        <Drawer.Screen name="CameraScan" component={CameraScanScreen} options={{ title: 'Scan Document' }} />
-        <Drawer.Screen name="Settings" component={SettingsScreen} />
-        <Drawer.Screen name="Premium" component={PremiumScreen} />
-        <Drawer.Screen name="Privacy" component={PrivacyScreen} />
-        <Drawer.Screen name="Terms" component={TermsScreen} />
-        <Drawer.Screen name="Licenses" component={LicensesScreen} />
-      </Drawer.Navigator>
+      <Stack.Navigator screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+        <Stack.Screen name="MainApp" component={DrawerNavigator} />
+      </Stack.Navigator>
     </NavigationContainer>
   );
 };

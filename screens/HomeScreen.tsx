@@ -1,18 +1,21 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, TouchableOpacity, Text, Platform, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, CommonActions, NavigationProp } from '@react-navigation/native';
 import { DrawerNavigationProp } from '@react-navigation/drawer';
+import { CompositeNavigationProp } from '@react-navigation/native';
+import { StackNavigationProp } from '@react-navigation/stack';
 import * as ImagePicker from 'expo-image-picker';
 import { Camera } from 'expo-camera';
 import { useTheme } from '../context/ThemeContext';
 import { SPACING, FONT_SIZES } from '../constants/theme';
-import { RootDrawerParamList } from '../types/navigation';
+import { RootDrawerParamList, RootStackParamList, RootNavigationParamList } from '../types/navigation';
 import { processImageWithOCR } from '../services/ocrService';
 import { optimizeImageForOCR } from '../utils/imageUtils';
 import ScanIllustration from '../assets/scan-illustration.svg';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-type HomeScreenNavigationProp = DrawerNavigationProp<RootDrawerParamList, 'Home'>;
+type HomeScreenNavigationProp = NavigationProp<RootNavigationParamList>;
 
 const HomeScreen = () => {
   const [isProcessing, setIsProcessing] = useState(false);
@@ -88,6 +91,25 @@ const HomeScreen = () => {
       >
         <Ionicons name="add" size={24} color="#FFFFFF" />
         <Text style={styles.buttonText}>NEW</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={styles.refreshButton}
+        onPress={async () => {
+          try {
+            await AsyncStorage.removeItem('hasSeenOnboarding');
+            navigation.dispatch(
+              CommonActions.reset({
+                index: 0,
+                routes: [{ name: 'Onboarding' }],
+              })
+            );
+          } catch (error) {
+            console.error('Error clearing onboarding state:', error);
+          }
+        }}
+      >
+        <View style={styles.refreshDot} />
       </TouchableOpacity>
 
       <Modal
@@ -206,6 +228,24 @@ const styles = StyleSheet.create({
   processingText: {
     fontSize: FONT_SIZES.lg,
     fontWeight: '600',
+  },
+  refreshButton: {
+    position: 'absolute',
+    bottom: SPACING.xl,
+    alignSelf: 'center',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 59, 48, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: SPACING.md,
+  },
+  refreshDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#FF3B30',
   },
 });
 

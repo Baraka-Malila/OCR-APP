@@ -1,3 +1,13 @@
+export type RootStackParamList = {
+  Onboarding: undefined;
+  MainApp: {
+    screen?: keyof RootDrawerParamList;
+    params?: {
+      fromOnboarding?: boolean;
+    };
+  };
+};
+
 export type RootDrawerParamList = {
   Home: undefined;
   CameraScan: undefined;
@@ -9,11 +19,16 @@ export type RootDrawerParamList = {
   Upload: undefined;
   History: undefined;
   Settings: undefined;
-  Premium: undefined;
+  Premium: {
+    fromOnboarding?: boolean;
+  };
   Privacy: undefined;
   Terms: undefined;
   Licenses: undefined;
 };
+
+// Combined navigation param list for nested navigation
+export type RootNavigationParamList = RootStackParamList & RootDrawerParamList;
 
 export type OCRResult = {
   id: string;
