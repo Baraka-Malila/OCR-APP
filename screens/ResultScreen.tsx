@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Share } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Share, Modal, Pressable, Alert } from 'react-native';
 import { useRoute, RouteProp } from '@react-navigation/native';
 import { RootDrawerParamList } from '../types/navigation';
 import { useTheme } from '../context/ThemeContext';
@@ -7,6 +7,7 @@ import { SPACING, FONT_SIZES } from '../constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import CustomButton from '../components/CustomButton';
+import * as FileSystem from 'expo-file-system';
 
 type ResultScreenRouteProp = RouteProp<RootDrawerParamList, 'Result'>;
 
@@ -14,6 +15,7 @@ const ResultScreen = () => {
   const route = useRoute<ResultScreenRouteProp>();
   const { colors } = useTheme();
   const { imageUri, recognizedText } = route.params;
+  const [exportModalVisible, setExportModalVisible] = useState(false);
 
   const copyToClipboard = async () => {
     await Clipboard.setStringAsync(recognizedText);
@@ -27,6 +29,24 @@ const ResultScreen = () => {
     } catch (error) {
       console.error('Error sharing text:', error);
     }
+  };
+
+  const exportAsTxt = async () => {
+    try {
+      const fileUri = FileSystem.documentDirectory + `ocr_result_${Date.now()}.txt`;
+      await FileSystem.writeAsStringAsync(fileUri, recognizedText);
+      Alert.alert('Exported', `Text file saved to: ${fileUri}`);
+    } catch (error) {
+      Alert.alert('Error', 'Failed to export as TXT.');
+    }
+  };
+
+  const exportAsPdf = async () => {
+    Alert.alert('Coming Soon', 'PDF export will be available in a future update.');
+  };
+
+  const exportAsDocx = async () => {
+    Alert.alert('Coming Soon', 'DOCX export will be available in a future update.');
   };
 
   return (
@@ -62,13 +82,28 @@ const ResultScreen = () => {
 
         <View style={styles.actionsContainer}>
           <CustomButton 
-            title="Share Text"
-            icon="share"
-            onPress={shareText}
-            style={[styles.actionButton, { backgroundColor: colors.primary }]}
+            title="Export"
+            icon="download-outline"
+            onPress={() => setExportModalVisible(true)}
+            style={{ ...styles.actionButton, backgroundColor: colors.primary }}
           />
         </View>
       </View>
+      <Modal
+        visible={exportModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setExportModalVisible(false)}
+      >
+        <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.3)' }} onPress={() => setExportModalVisible(false)}>
+          <View style={{ position: 'absolute', bottom: 40, left: 0, right: 0, backgroundColor: colors.surface, borderRadius: 12, margin: 24, padding: 24 }}>
+            <Text style={{ fontSize: FONT_SIZES.lg, fontWeight: '600', marginBottom: 16, color: colors.text }}>Export as...</Text>
+            <CustomButton title="TXT" icon="document-text-outline" onPress={() => { setExportModalVisible(false); exportAsTxt(); }} style={{ marginBottom: 12 }} />
+            <CustomButton title="PDF" icon="document-outline" onPress={() => { setExportModalVisible(false); exportAsPdf(); }} style={{ marginBottom: 12 }} />
+            <CustomButton title="MS Word (DOCX)" icon="document-attach-outline" onPress={() => { setExportModalVisible(false); exportAsDocx(); }} />
+          </View>
+        </Pressable>
+      </Modal>
     </ScrollView>
   );
 };

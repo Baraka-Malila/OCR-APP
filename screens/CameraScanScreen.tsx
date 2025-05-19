@@ -2,7 +2,7 @@ import React, { useRef, useState, useEffect } from 'react';
 import { View, StyleSheet, TouchableOpacity, Text, Platform, Alert } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import type { CameraType } from 'expo-camera';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { DrawerNavigationProp } from '@react-navigation/drawer';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
@@ -20,10 +20,15 @@ const CameraScanScreen = () => {
   const cameraRef = useRef<CameraView>(null);
   const navigation = useNavigation<CameraScanScreenNavigationProp>();
   const { colors } = useTheme();
+  const isFocused = useIsFocused();
 
   useEffect(() => {
     requestPermission();
   }, []);
+
+  useEffect(() => {
+    if (isFocused) setFacing('back');
+  }, [isFocused]);
 
   const takePicture = async () => {
     if (cameraRef.current && !isCapturing) {
@@ -83,44 +88,46 @@ const CameraScanScreen = () => {
 
   return (
     <View style={styles.container}>
-      <CameraView
-        ref={cameraRef}
-        style={styles.camera}
-        facing={facing}
-      >
-        <View style={styles.overlay}>
-          <View style={styles.scanFrame} />
-          <Text style={styles.instructionText}>
-            Position document within the frame
-          </Text>
-        </View>
+      {isFocused && (
+        <CameraView
+          ref={cameraRef}
+          style={styles.camera}
+          facing={facing}
+        >
+          <View style={styles.overlay}>
+            <View style={styles.scanFrame} />
+            <Text style={styles.instructionText}>
+              Position document within the frame
+            </Text>
+          </View>
 
-        <View style={styles.controls}>
-          <TouchableOpacity
-            style={[styles.controlButton, { backgroundColor: colors.primary }]}
-            onPress={flipCamera}
-          >
-            <Ionicons name="camera-reverse" size={24} color="#FFFFFF" />
-          </TouchableOpacity>
+          <View style={styles.controls}>
+            <TouchableOpacity
+              style={[styles.controlButton, { backgroundColor: colors.primary }]}
+              onPress={flipCamera}
+            >
+              <Ionicons name="camera-reverse" size={24} color="#FFFFFF" />
+            </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[styles.captureButton, { backgroundColor: colors.primary }]}
-            onPress={takePicture}
-            disabled={isCapturing}
-          >
-            <View style={styles.captureOuter}>
-              <View style={[styles.captureInner, { backgroundColor: '#FFFFFF' }]} />
-            </View>
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.captureButton, { backgroundColor: colors.primary }]}
+              onPress={takePicture}
+              disabled={isCapturing}
+            >
+              <View style={styles.captureOuter}>
+                <View style={[styles.captureInner, { backgroundColor: '#FFFFFF' }]} />
+              </View>
+            </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[styles.controlButton, { backgroundColor: colors.primary }]}
-            onPress={() => navigation.goBack()}
-          >
-            <Ionicons name="close" size={24} color="#FFFFFF" />
-          </TouchableOpacity>
-        </View>
-      </CameraView>
+            <TouchableOpacity
+              style={[styles.controlButton, { backgroundColor: colors.primary }]}
+              onPress={() => navigation.goBack()}
+            >
+              <Ionicons name="close" size={24} color="#FFFFFF" />
+            </TouchableOpacity>
+          </View>
+        </CameraView>
+      )}
     </View>
   );
 };

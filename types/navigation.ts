@@ -31,6 +31,7 @@ export type RootDrawerParamList = {
     fromOnboarding?: boolean;
   };
   Licenses: undefined;
+  LanguageModels: undefined;
 };
 
 // Combined navigation param list for nested navigation

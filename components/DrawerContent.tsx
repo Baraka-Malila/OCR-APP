@@ -102,6 +102,11 @@ export const DrawerContent = (props: any) => {
             icon="code-slash-outline"
             onPress={() => props.navigation.navigate('Licenses')}
           />
+          <DrawerItem
+            label="Language Models"
+            icon="cloud-download-outline"
+            onPress={() => props.navigation.navigate('LanguageModels')}
+          />
 
           <View style={styles.socialSection}>
             <Text style={[styles.socialTitle, { color: colors.textSecondary }]}>

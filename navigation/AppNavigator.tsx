@@ -19,6 +19,7 @@ import ResultScreen from '../screens/ResultScreen';
 import HistoryScreen from '../screens/HistoryScreen';
 import CameraScanScreen from '../screens/CameraScanScreen';
 import OnboardingScreen from '../screens/OnboardingScreen';
+import LanguageModelsScreen from '../screens/LanguageModelsScreen';
 
 const Drawer = createDrawerNavigator();
 const Stack = createStackNavigator();
@@ -74,6 +75,7 @@ const DrawerNavigator = () => {
       <Drawer.Screen name="Privacy" component={PrivacyScreen} />
       <Drawer.Screen name="Terms" component={TermsScreen} />
       <Drawer.Screen name="Licenses" component={LicensesScreen} />
+      <Drawer.Screen name="LanguageModels" component={LanguageModelsScreen} />
     </Drawer.Navigator>
   );
 };
