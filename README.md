@@ -1,4 +1,4 @@
-# OCR App - Recognize Text in English and Swahili
+# OCR App - Recognize Text in English and Swahili(not implemented yet)
 
 This application allows you to extract text from images. It supports Optical Character Recognition (OCR) for both **English** and **Swahili** languages.
 
