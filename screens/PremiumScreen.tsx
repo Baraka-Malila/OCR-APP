@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { ScreenTemplate } from '../components/ScreenTemplate';
 import { useTheme } from '../context/ThemeContext';
 import { SPACING, FONT_SIZES } from '../constants/theme';
+import { useNavigation, useRoute } from '@react-navigation/native';
 
 const PremiumFeature = ({ icon, title, description }: {
   icon: keyof typeof Ionicons.glyphMap;
@@ -96,6 +97,9 @@ const PremiumScreen = () => {
   const { colors } = useTheme();
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(0);
+  const navigation = useNavigation();
+  const route = useRoute();
+  const fromOnboarding = route?.params?.fromOnboarding;
 
   const handlePurchase = () => {
     // Implement purchase logic
@@ -113,8 +117,16 @@ const PremiumScreen = () => {
     Linking.openURL(url);
   };
 
+  const handleBack = () => {
+    if (fromOnboarding) {
+      navigation.getParent()?.navigate('Onboarding', { initialSlide: 3 });
+    } else {
+      navigation.goBack();
+    }
+  };
+
   return (
-    <ScreenTemplate title="OCR Premium" isStandalone>
+    <ScreenTemplate title="OCR Premium" isStandalone onBack={handleBack}>
       <ScrollView style={styles.container}>
         <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
           Unlock Premium Features
