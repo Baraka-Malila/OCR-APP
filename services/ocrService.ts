@@ -1,5 +1,5 @@
-import { imageToBase64, saveImageToFileSystem } from '../utils/imageUtils';
-import { GOOGLE_CLOUD_VISION_API_KEY } from '@env';
+import { imageToBase64 } from '../utils/imageUtils';
+import { MISTRAL_OCR_API_KEY } from '@env';
 
 // OCR Result type
 export interface OCRResult {
@@ -10,8 +10,7 @@ export interface OCRResult {
 }
 
 /**
- * Processes an image with OCR to extract text.
- * This function can be modified to use different OCR providers.
+ * Processes an image with OCR to extract text using Mistral's API
  * 
  * @param imageUri - URI of the image to process
  * @returns Promise<string> - Extracted text from the image
@@ -19,48 +18,54 @@ export interface OCRResult {
 export const processImageWithOCR = async (imageUri: string): Promise<string> => {
   try {
     const base64Image = await imageToBase64(imageUri);
+    
     const requestPayload = {
-      requests: [
+      model: "mistral-large-vision", // Using Mistral's vision-capable model
+      messages: [
         {
-          image: {
-            content: base64Image,
-          },
-          features: [
+          role: "user",
+          content: [
             {
-              type: 'TEXT_DETECTION',
-              maxResults: 1,
+              type: "text",
+              text: "Please extract and return all text from this image. Return only the extracted text, nothing else."
             },
-          ],
-        },
-      ],
+            {
+              type: "image_url",
+              image_url: {
+                url: `data:image/jpeg;base64,${base64Image}`
+              }
+            }
+          ]
+        }
+      ]
     };
+
     console.log('OCR Request Payload:', JSON.stringify(requestPayload).slice(0, 500)); // Truncate for log safety
+
     const response = await fetch(
-      `https://vision.googleapis.com/v1/images:annotate?key=${GOOGLE_CLOUD_VISION_API_KEY}`,
+      'https://api.mistral.ai/v1/chat/completions',
       {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${MISTRAL_OCR_API_KEY}`
         },
         body: JSON.stringify(requestPayload),
       }
     );
+
     console.log('OCR Response Status:', response.status);
     const data = await response.json();
     console.log('OCR Response Data:', JSON.stringify(data).slice(0, 1000)); // Truncate for log safety
-    if (
-      data.responses &&
-      data.responses[0] &&
-      data.responses[0].fullTextAnnotation &&
-      data.responses[0].fullTextAnnotation.text
-    ) {
-      return data.responses[0].fullTextAnnotation.text;
+
+    if (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) {
+      return data.choices[0].message.content.trim();
     } else {
-      return 'No text detected';
+      throw new Error('No text detected in the image');
     }
   } catch (error) {
     console.error('Error in OCR processing:', error);
-    return 'Failed to process image with OCR';
+    throw error;
   }
 };
 
@@ -68,12 +73,12 @@ export const processImageWithOCR = async (imageUri: string): Promise<string> => 
  * Registers an OCR API key for the service
  * 
  * @param apiKey - The API key to register
- * @param provider - The OCR provider ('google', 'microsoft', etc.)
+ * @param provider - The OCR provider ('mistral', 'google', etc.)
  * @returns Promise<boolean> - Whether the key was registered successfully
  */
 export const registerOCRApiKey = async (
   apiKey: string, 
-  provider: 'google' | 'microsoft' | 'other'
+  provider: 'mistral' | 'google' | 'other'
 ): Promise<boolean> => {
   try {
     // In a real app, you would securely store the API key
