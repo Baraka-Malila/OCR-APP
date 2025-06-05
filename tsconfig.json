@@ -16,7 +16,8 @@
     "baseUrl": ".",
     "paths": {
       "*": ["*", "src/*"]
-    }
+    },
+    "types": ["react-native"]
   },
   "exclude": [
     "node_modules",
@@ -28,6 +29,6 @@
     "**/*.ts",
     "**/*.tsx",
     "**/*.svg",
-    "types/*.d.ts"
+    "types/**/*.d.ts"
   ]
 }
