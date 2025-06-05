@@ -27,4 +27,6 @@ This application allows you to extract text from images. It supports Optical Cha
 
 ## License
 
-[ ]
+Open source licenses
+
+[]
