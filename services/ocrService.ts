@@ -20,30 +20,40 @@ export const processImageWithOCR = async (imageUri: string): Promise<string> => 
     const base64Image = await imageToBase64(imageUri);
     
     const requestPayload = {
-      model: "mistral-large-vision", // Using Mistral's vision-capable model
-      messages: [
-        {
-          role: "user",
-          content: [
-            {
-              type: "text",
-              text: "Please extract and return all text from this image. Return only the extracted text, nothing else."
-            },
-            {
-              type: "image_url",
-              image_url: {
-                url: `data:image/jpeg;base64,${base64Image}`
-              }
-            }
-          ]
+      model: "mistral-ocr", // Using Mistral's OCR model
+      id: `ocr_${Date.now()}`, // Generate a unique ID for the request
+      document: {
+        type: "image_url",
+        image_url: `data:image/jpeg;base64,${base64Image}`
+      },
+      pages: [0], // Process first page
+      include_image_base64: false,
+      image_limit: 1,
+      image_min_size: 100,
+      bbox_annotation_format: {
+        type: "text",
+        json_schema: {
+          type: "object",
+          properties: {
+            text: { type: "string" }
+          }
         }
-      ]
+      },
+      document_annotation_format: {
+        type: "text",
+        json_schema: {
+          type: "object",
+          properties: {
+            text: { type: "string" }
+          }
+        }
+      }
     };
 
     console.log('OCR Request Payload:', JSON.stringify(requestPayload).slice(0, 500)); // Truncate for log safety
 
     const response = await fetch(
-      'https://api.mistral.ai/v1/chat/completions',
+      'https://api.mistral.ai/v1/ocr',
       {
         method: 'POST',
         headers: {
@@ -58,8 +68,10 @@ export const processImageWithOCR = async (imageUri: string): Promise<string> => 
     const data = await response.json();
     console.log('OCR Response Data:', JSON.stringify(data).slice(0, 1000)); // Truncate for log safety
 
-    if (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) {
-      return data.choices[0].message.content.trim();
+    if (data.pages && data.pages[0] && data.pages[0].text) {
+      return data.pages[0].text;
+    } else if (data.document_annotation) {
+      return data.document_annotation;
     } else {
       throw new Error('No text detected in the image');
     }
