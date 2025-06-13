@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Share, Modal, Pressable, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Share, Modal, Pressable, Alert, ViewStyle } from 'react-native';
 import { useRoute, RouteProp } from '@react-navigation/native';
 import { RootDrawerParamList } from '../types/navigation';
 import { useTheme } from '../context/ThemeContext';
@@ -17,26 +17,59 @@ const ResultScreen = () => {
   const { imageUri, recognizedText } = route.params;
   const [exportModalVisible, setExportModalVisible] = useState(false);
 
+  // Define ViewStyle objects for buttons
+  const shareButtonStyle: ViewStyle = {
+    ...styles.actionButton,
+    backgroundColor: colors.secondary,
+    marginRight: SPACING.sm
+  };
+
+  const exportButtonStyle: ViewStyle = {
+    ...styles.actionButton,
+    backgroundColor: colors.primary
+  };
+
+  // Safely get the recognized text
+  const getDisplayText = () => {
+    if (!recognizedText) return 'No text recognized';
+    if (typeof recognizedText === 'string') return recognizedText;
+    if (typeof recognizedText === 'object') {
+      const result = recognizedText as { recognizedText?: string };
+      return result.recognizedText || 'No text recognized';
+    }
+    return 'No text recognized';
+  };
+
+  const displayText = getDisplayText();
+
   const copyToClipboard = async () => {
-    await Clipboard.setStringAsync(recognizedText);
+    try {
+      await Clipboard.setStringAsync(displayText);
+      Alert.alert('Copied', 'Text copied to clipboard!');
+    } catch (error) {
+      Alert.alert('Error', 'Failed to copy text to clipboard.');
+    }
   };
 
   const shareText = async () => {
     try {
       await Share.share({
-        message: recognizedText,
+        message: displayText,
       });
     } catch (error) {
       console.error('Error sharing text:', error);
+      Alert.alert('Error', 'Failed to share text.');
     }
   };
 
   const exportAsTxt = async () => {
     try {
-      const fileUri = FileSystem.documentDirectory + `ocr_result_${Date.now()}.txt`;
-      await FileSystem.writeAsStringAsync(fileUri, recognizedText);
-      Alert.alert('Exported', `Text file saved to: ${fileUri}`);
+      const fileName = `ocr_result_${Date.now()}.txt`;
+      const fileUri = FileSystem.documentDirectory + fileName;
+      await FileSystem.writeAsStringAsync(fileUri, displayText);
+      Alert.alert('Exported', `Text file saved as: ${fileName}`);
     } catch (error) {
+      console.error('Export error:', error);
       Alert.alert('Error', 'Failed to export as TXT.');
     }
   };
@@ -47,6 +80,23 @@ const ResultScreen = () => {
 
   const exportAsDocx = async () => {
     Alert.alert('Coming Soon', 'DOCX export will be available in a future update.');
+  };
+
+  // Render text with proper line breaks
+  const renderText = () => {
+    if (!displayText || displayText === 'No text recognized') {
+      return (
+        <Text style={[styles.recognizedText, { color: colors.text, fontStyle: 'italic' }]}>
+          No text recognized
+        </Text>
+      );
+    }
+
+    return (
+      <Text style={[styles.recognizedText, { color: colors.text }]}>
+        {displayText}
+      </Text>
+    );
   };
 
   return (
@@ -72,36 +122,86 @@ const ResultScreen = () => {
             <Ionicons name="copy" size={20} color="#FFFFFF" />
             <Text style={styles.copyButtonText}>Copy</Text>
           </TouchableOpacity>
-        </View>          <View style={[styles.textContainer, { backgroundColor: colors.surface }]}>
-            <ScrollView>
-              <Text style={[styles.recognizedText, { color: colors.text }]}>
-                {typeof recognizedText === 'string' ? recognizedText : JSON.stringify(recognizedText)}
-              </Text>
-            </ScrollView>
-          </View>
+        </View>
+        
+        <View style={[styles.textContainer, { backgroundColor: colors.surface }]}>
+          <ScrollView nestedScrollEnabled={true}>
+            {renderText()}
+          </ScrollView>
+        </View>
 
-          <View style={styles.actionsContainer}>
-            <CustomButton 
-              title="Export"
-              icon="download-outline"
-              onPress={() => setExportModalVisible(true)}
-              style={{ ...styles.actionButton, backgroundColor: colors.primary }}
-            />
+        <View style={styles.actionsContainer}>
+          <CustomButton 
+            title="Share"
+            icon="share-outline"
+            onPress={shareText}
+            style={shareButtonStyle}
+          />
+          <CustomButton 
+            title="Export"
+            icon="download-outline"
+            onPress={() => setExportModalVisible(true)}
+            style={exportButtonStyle}
+          />
         </View>
       </View>
+
+      {/* Export Modal */}
       <Modal
         visible={exportModalVisible}
-        transparent
-        animationType="fade"
+        transparent={true}
+        animationType="slide"
         onRequestClose={() => setExportModalVisible(false)}
       >
-        <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.3)' }} onPress={() => setExportModalVisible(false)}>
-          <View style={{ position: 'absolute', bottom: 40, left: 0, right: 0, backgroundColor: colors.surface, borderRadius: 12, margin: 24, padding: 24 }}>
-            <Text style={{ fontSize: FONT_SIZES.lg, fontWeight: '600', marginBottom: 16, color: colors.text }}>Export as...</Text>
-            <CustomButton title="TXT" icon="document-text-outline" onPress={() => { setExportModalVisible(false); exportAsTxt(); }} style={{ marginBottom: 12 }} />
-            <CustomButton title="PDF" icon="document-outline" onPress={() => { setExportModalVisible(false); exportAsPdf(); }} style={{ marginBottom: 12 }} />
-            <CustomButton title="MS Word (DOCX)" icon="document-attach-outline" onPress={() => { setExportModalVisible(false); exportAsDocx(); }} />
-          </View>
+        <Pressable 
+          style={styles.modalOverlay} 
+          onPress={() => setExportModalVisible(false)}
+        >
+          <Pressable 
+            style={[styles.modalContent, { backgroundColor: colors.surface }]}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <Text style={[styles.modalTitle, { color: colors.text }]}>
+              Export as...
+            </Text>
+            
+            <CustomButton 
+              title="TXT File" 
+              icon="document-text-outline" 
+              onPress={() => { 
+                setExportModalVisible(false); 
+                exportAsTxt(); 
+              }} 
+              style={{ ...styles.modalButton, backgroundColor: colors.primary }}
+            />
+            
+            <CustomButton 
+              title="PDF Document" 
+              icon="document-outline" 
+              onPress={() => { 
+                setExportModalVisible(false); 
+                exportAsPdf(); 
+              }} 
+              style={{ ...styles.modalButton, backgroundColor: colors.primary }}
+            />
+            
+            <CustomButton 
+              title="MS Word (DOCX)" 
+              icon="document-attach-outline" 
+              onPress={() => { 
+                setExportModalVisible(false); 
+                exportAsDocx(); 
+              }} 
+              style={{ ...styles.modalButton, backgroundColor: colors.primary }}
+            />
+
+            <CustomButton 
+              title="Cancel" 
+              icon="close-outline" 
+              onPress={() => setExportModalVisible(false)} 
+              style={{ ...styles.modalButton, backgroundColor: colors.error }}
+            />
+          </Pressable>
         </Pressable>
       </Modal>
     </ScrollView>
@@ -150,6 +250,8 @@ const styles = StyleSheet.create({
   textContainer: {
     padding: SPACING.md,
     borderRadius: 12,
+    minHeight: 200,
+    maxHeight: 400,
   },
   recognizedText: {
     fontSize: FONT_SIZES.md,
@@ -161,7 +263,29 @@ const styles = StyleSheet.create({
     marginTop: SPACING.md,
   },
   actionButton: {
-    minWidth: 120,
+    minWidth: 100,
+    flex: 1,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    width: '85%',
+    borderRadius: 12,
+    padding: 24,
+    maxWidth: 400,
+  },
+  modalTitle: {
+    fontSize: FONT_SIZES.lg,
+    fontWeight: '600',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  modalButton: {
+    marginBottom: 12,
   },
 });
 

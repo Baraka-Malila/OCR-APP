@@ -39,17 +39,21 @@ const CustomButton: FC<CustomButtonProps> = ({
 }) => {
   return (
     <TouchableOpacity
-      style={[
-        styles.button,
-        style,
-        disabled && styles.disabledButton,
-      ]}
+      style={{
+        ...styles.button,
+        ...(style as object),
+        ...(disabled ? styles.disabledButton : {})
+      }}
       onPress={onPress}
       disabled={disabled}
       activeOpacity={0.8}
     >
       {icon && <Ionicons name={icon} size={24} color="white" style={styles.icon} />}
-      <Text style={[styles.text, textStyle, disabled && styles.disabledText]}>
+      <Text style={{
+        ...styles.text,
+        ...(textStyle as object),
+        ...(disabled ? styles.disabledText : {})
+      }}>
         {title}
       </Text>
     </TouchableOpacity>
