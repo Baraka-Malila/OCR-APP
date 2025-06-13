@@ -92,10 +92,34 @@ const ResultScreen = () => {
       );
     }
 
+    // Split text into blocks
+    const blocks = displayText.split('\n\n');
+
     return (
-      <Text style={[styles.recognizedText, { color: colors.text }]}>
-        {displayText}
-      </Text>
+      <View style={styles.textContentContainer}>
+        {blocks.map((block, index) => {
+          const lines = block.split('\n');
+          const isHeading = lines.length === 1 && lines[0].match(/^[A-Z0-9][\w\s-]{0,50}$/);
+          const isList = lines.some(line => line.match(/^[\s]*[-•*]\s|^\d+\.\s/));
+          const isTable = lines.some(line => line.includes('\t') || line.match(/\s{3,}/));
+
+          return (
+            <View key={index} style={styles.textBlock}>
+              <Text
+                style={[
+                  styles.recognizedText,
+                  { color: colors.text },
+                  isHeading && styles.headingText,
+                  isList && styles.listText,
+                  isTable && styles.tableText
+                ]}
+              >
+                {block}
+              </Text>
+            </View>
+          );
+        })}
+      </View>
     );
   };
 
@@ -286,6 +310,23 @@ const styles = StyleSheet.create({
   },
   modalButton: {
     marginBottom: 12,
+  },
+  textContentContainer: {
+    width: '100%',
+  },
+  textBlock: {
+    marginBottom: SPACING.sm,
+  },
+  headingText: {
+    fontSize: FONT_SIZES.lg,
+    fontWeight: '600',
+    marginBottom: SPACING.xs,
+  },
+  listText: {
+    paddingLeft: SPACING.sm,
+  },
+  tableText: {
+    fontFamily: 'monospace',
   },
 });
 

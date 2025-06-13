@@ -49,20 +49,123 @@ const isDocumentType = (imageUri: string): boolean => {
   return docExtensions.some(ext => lowerUri.includes(ext));
 };
 
+interface TextBlock {
+  text: string;
+  type: 'heading' | 'paragraph' | 'list' | 'table' | 'unknown';
+  indent: number;
+}
+
 /**
- * Clean and format text for better display
+ * Enhanced text cleaning and structure detection
  */
 const cleanText = (text: string): string => {
   if (!text || typeof text !== 'string') return '';
+
+  // Split text into blocks for analysis
+  const blocks = text
+    .split(/\n{2,}/)
+    .map(block => block.trim())
+    .filter(block => block.length > 0);
+
+  // Process each block
+  const processedBlocks = blocks.map(block => {
+    const textBlock = analyzeTextBlock(block);
+    return formatTextBlock(textBlock);
+  });
+
+  return processedBlocks.join('\n\n');
+};
+
+/**
+ * Analyze text block to determine its type and structure
+ */
+const analyzeTextBlock = (block: string): TextBlock => {
+  const lines = block.split('\n');
+  const indent = getIndentation(block);
   
-  return text
-    .trim()
-    .replace(/\r\n/g, '\n')  // Normalize line endings
-    .replace(/\r/g, '\n')    // Convert CR to LF
-    .replace(/\n{3,}/g, '\n\n')  // Replace multiple newlines with double newline
-    .replace(/[ \t]+/g, ' ')  // Replace multiple spaces/tabs with single space
-    .replace(/[ \t]*\n[ \t]*/g, '\n')  // Remove spaces around newlines
-    .trim();
+  // Detect headings
+  if (lines.length === 1 && (
+    lines[0].match(/^[A-Z0-9][\w\s-]{0,50}$/) || // All caps or numbered
+    lines[0].length <= 50 && !lines[0].endsWith('.') // Short line without period
+  )) {
+    return { text: block, type: 'heading', indent };
+  }
+
+  // Detect lists
+  if (lines.some(line => line.match(/^[\s]*[-•*]\s|^\d+\.\s/))) {
+    return { text: block, type: 'list', indent };
+  }
+
+  // Detect tables (simplified)
+  if (lines.some(line => line.includes('\t') || line.match(/\s{3,}/))) {
+    return { text: block, type: 'table', indent };
+  }
+
+  // Default to paragraph
+  return { text: block, type: 'paragraph', indent };
+};
+
+/**
+ * Format text block based on its type
+ */
+const formatTextBlock = (block: TextBlock): string => {
+  let formattedText = block.text;
+
+  switch (block.type) {
+    case 'heading':
+      // Preserve heading format
+      formattedText = block.text.trim();
+      break;
+
+    case 'paragraph':
+      // Clean up paragraphs while preserving intentional line breaks
+      formattedText = block.text
+        .replace(/[ \t]+/g, ' ')
+        .replace(/[ \t]*\n[ \t]*/g, '\n')
+        .trim();
+      break;
+
+    case 'list':
+      // Preserve list formatting and indentation
+      formattedText = block.text
+        .split('\n')
+        .map(line => line.trim())
+        .join('\n');
+      break;
+
+    case 'table':
+      // Preserve table structure
+      formattedText = block.text
+        .split('\n')
+        .map(line => line.replace(/\t/g, '    '))
+        .join('\n');
+      break;
+  }
+
+  // Apply indentation
+  if (block.indent > 0) {
+    formattedText = formattedText
+      .split('\n')
+      .map(line => ' '.repeat(block.indent) + line)
+      .join('\n');
+  }
+
+  return formattedText;
+};
+
+/**
+ * Calculate the indentation level of a text block
+ */
+const getIndentation = (text: string): number => {
+  const lines = text.split('\n');
+  const indents = lines
+    .map(line => {
+      const indent = line.match(/^[\s]*/)?.[0].length || 0;
+      return indent < line.length ? indent : 0;
+    })
+    .filter(indent => indent > 0);
+  
+  return indents.length > 0 ? Math.min(...indents) : 0;
 };
 
 /**
@@ -80,9 +183,18 @@ const processWithOCRSpace = async (base64Image: string, language: string = 'eng'
     
     formData.append('base64Image', `data:${mimeType};base64,${base64Image}`);
     formData.append('language', language);
-    formData.append('isOverlayRequired', 'false');
-    formData.append('OCREngine', '2'); // Use OCR Engine 2 for better accuracy
-    formData.append('isTable', 'true'); // Better for documents with tables
+    formData.append('isOverlayRequired', 'true');
+    formData.append('OCREngine', '2');
+    formData.append('detectOrientation', 'true');
+    formData.append('isTable', 'true');
+    
+    // Don't use scale parameter as it's causing issues
+    // Instead, we'll handle image optimization before sending
+    
+    // Add API key if available
+    if (OCR_SPACE_API_KEY) {
+      formData.append('apikey', OCR_SPACE_API_KEY);
+    }
     formData.append('scale', 'true'); // Scale image for better OCR
     formData.append('isCreateSearchablePdf', 'false');
     
@@ -131,8 +243,21 @@ const processWithMistral = async (base64Image: string, isDocument: boolean = fal
 
   try {
     const systemPrompt = isDocument 
-      ? 'You are an expert OCR system. Extract ALL text from this document image, preserving formatting, structure, and layout as much as possible. Include headings, paragraphs, lists, and any other text elements. Return only the extracted text without any additional commentary.'
-      : 'Extract all text from this image. Return only the extracted text without any additional formatting or explanation.';
+      ? `You are an expert OCR system specialized in document structure preservation.
+         Guidelines for text extraction:
+         1. Preserve all headings and their hierarchy
+         2. Maintain paragraph breaks and indentation
+         3. Keep list formatting (bullets, numbers)
+         4. Preserve table structures and alignments
+         5. Retain any special formatting (e.g., columns)
+         6. Maintain original line breaks when meaningful
+         Extract ALL text from the document exactly as it appears, keeping the original structure.
+         Return ONLY the extracted text without any commentary or markdown.`
+      : `Extract all text from this image preserving:
+         - Original line breaks and spacing
+         - Text alignment and indentation
+         - Any visible structure or formatting
+         Return only the extracted text without additional formatting or explanation.`;
 
     // Determine image format
     let mimeType = 'image/jpeg';
