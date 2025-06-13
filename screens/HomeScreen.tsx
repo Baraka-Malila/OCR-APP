@@ -27,11 +27,11 @@ const HomeScreen = () => {
     try {
       setIsProcessing(true);
       const optimizedImage = await optimizeImageForOCR(imageUri);
-      const recognizedText = await processImageWithOCR(optimizedImage);
+      const ocrResult = await processImageWithOCR(optimizedImage);
       
       navigation.navigate('Result', {
         imageUri: optimizedImage,
-        recognizedText,
+        recognizedText: ocrResult.recognizedText,
         timestamp: Date.now()
       });
     } catch (error) {
