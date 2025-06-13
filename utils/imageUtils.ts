@@ -12,26 +12,29 @@ import * as FileSystem from 'expo-file-system';
  */
 export const optimizeImageForOCR = async (imageUri: string): Promise<string> => {
   try {
+    // Determine format
+    const format = imageUri.toLowerCase().endsWith('.png') 
+      ? ImageManipulator.SaveFormat.PNG 
+      : ImageManipulator.SaveFormat.JPEG;
+
     // Step 1: Resize the image to reasonable dimensions for processing
-    // OCR works best with images that aren't too large
     const resizeResult = await ImageManipulator.manipulateAsync(
       imageUri,
       [{ resize: { width: 1200 } }],
-      { compress: 0.9, format: ImageManipulator.SaveFormat.JPEG }
+      { compress: 0.9, format }
     );
     
     // Step 2: Get the new image metadata
     const fileInfo = await FileSystem.getInfoAsync(resizeResult.uri);
     
     // Step 3: If image is still large, compress further
-    // Using type assertion to handle the FileInfo type issue
     const fileInfoWithSize = fileInfo as FileSystem.FileInfo & { size?: number };
     
-    if (fileInfoWithSize.size && fileInfoWithSize.size > 1000000) { // If larger than ~1MB
+    if (fileInfoWithSize.size && fileInfoWithSize.size > 1000000) {
       return ImageManipulator.manipulateAsync(
         resizeResult.uri,
         [],
-        { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
+        { compress: 0.7, format }
       ).then(result => result.uri);
     }
     
@@ -51,12 +54,19 @@ export const optimizeImageForOCR = async (imageUri: string): Promise<string> => 
  */
 export const imageToBase64 = async (imageUri: string): Promise<string> => {
   try {
-    return await FileSystem.readAsStringAsync(imageUri, {
-      encoding: FileSystem.EncodingType.Base64,
+    // First, optimize the image
+    const optimizedUri = await optimizeImageForOCR(imageUri);
+    
+    // Read the file content
+    const base64 = await FileSystem.readAsStringAsync(optimizedUri, {
+      encoding: FileSystem.EncodingType.Base64
     });
+
+    // Return raw base64 without data URI scheme
+    return base64;
   } catch (error) {
     console.error('Error converting image to base64:', error);
-    throw error;
+    throw new Error('Failed to convert image to base64');
   }
 };
 

@@ -72,21 +72,21 @@ const ResultScreen = () => {
             <Ionicons name="copy" size={20} color="#FFFFFF" />
             <Text style={styles.copyButtonText}>Copy</Text>
           </TouchableOpacity>
-        </View>
+        </View>          <View style={[styles.textContainer, { backgroundColor: colors.surface }]}>
+            <ScrollView>
+              <Text style={[styles.recognizedText, { color: colors.text }]}>
+                {typeof recognizedText === 'string' ? recognizedText : JSON.stringify(recognizedText)}
+              </Text>
+            </ScrollView>
+          </View>
 
-        <View style={[styles.textContainer, { backgroundColor: colors.surface }]}>
-          <Text style={[styles.recognizedText, { color: colors.text }]}>
-            {recognizedText}
-          </Text>
-        </View>
-
-        <View style={styles.actionsContainer}>
-          <CustomButton 
-            title="Export"
-            icon="download-outline"
-            onPress={() => setExportModalVisible(true)}
-            style={{ ...styles.actionButton, backgroundColor: colors.primary }}
-          />
+          <View style={styles.actionsContainer}>
+            <CustomButton 
+              title="Export"
+              icon="download-outline"
+              onPress={() => setExportModalVisible(true)}
+              style={{ ...styles.actionButton, backgroundColor: colors.primary }}
+            />
         </View>
       </View>
       <Modal
