@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { CompositeNavigationProp } from '@react-navigation/native';
+import { DrawerNavigationProp } from '@react-navigation/drawer';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { RootStackParamList } from '../navigation/AppNavigator';
+import { RootDrawerParamList, RootStackParamList } from '../types/navigation';
 import ROUTES from '../constants/routes';
 import { ScreenTemplate } from '../components/ScreenTemplate';
 import CustomButton from '../components/CustomButton';
@@ -11,9 +13,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
 import { SPACING, FONT_SIZES } from '../constants/theme';
 
-type HistoryScreenNavigationProp = StackNavigationProp<
-  RootStackParamList,
-  typeof ROUTES.HISTORY
+type HistoryScreenNavigationProp = CompositeNavigationProp<
+  DrawerNavigationProp<RootDrawerParamList, 'History'>,
+  StackNavigationProp<RootStackParamList>
 >;
 
 const HistoryScreen = () => {
@@ -54,11 +56,16 @@ const HistoryScreen = () => {
   const renderItem = ({ item }: { item: OCRResult }) => (
     <TouchableOpacity
       style={[styles.historyItem, { backgroundColor: colors.background }]}
-      onPress={() => navigation.navigate('Result', {
-        imageUri: item.imageUri,
-        recognizedText: item.text,
-        timestamp: item.timestamp,
-      })}
+      onPress={() => {
+        navigation.navigate('MainApp', {
+          screen: 'Result',
+          params: {
+            imageUri: item.imageUri,
+            recognizedText: item.recognizedText,
+            timestamp: item.timestamp,
+          }
+        });
+      }}
     >
       <Image source={{ uri: item.imageUri }} style={styles.thumbnail} />
       <View style={styles.itemContent}>
@@ -69,7 +76,7 @@ const HistoryScreen = () => {
           style={[styles.preview, { color: colors.text }]}
           numberOfLines={2}
         >
-          {item.text}
+          {item.recognizedText}
         </Text>
       </View>
       <TouchableOpacity

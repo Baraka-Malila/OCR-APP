@@ -6,7 +6,7 @@ export type RootStackParamList = {
     screen?: keyof RootDrawerParamList;
     params?: {
       fromOnboarding?: boolean;
-    };
+    } | RootDrawerParamList[keyof RootDrawerParamList];
   };
 };
 
