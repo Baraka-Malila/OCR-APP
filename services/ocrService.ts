@@ -1,3 +1,4 @@
+import { Mistral } from "@mistralai/mistralai";
 import { imageToBase64 } from '../utils/imageUtils';
 import { MISTRAL_OCR_API_KEY } from '@env';
 
@@ -7,77 +8,105 @@ export interface OCRResult {
   imageUri: string;
   recognizedText: string;
   timestamp: number;
+  confidence?: number;
+  language?: string;
 }
+
+interface OCRConfig {
+  language?: string;
+  modelVersion?: string;
+  enhanceResults?: boolean;
+  timeout?: number;
+}
+
+const DEFAULT_CONFIG: OCRConfig = {
+  language: 'auto',
+  modelVersion: 'mistral/mistral-ocr-latest',
+  enhanceResults: true,
+  timeout: 30000, // 30 seconds
+};
+
+// Initialize Mistral client
+const getMistralClient = () => {
+  if (!MISTRAL_OCR_API_KEY) {
+    throw new Error("MISTRAL_OCR_API_KEY environment variable is not set.");
+  }
+  return new Mistral({ apiKey: MISTRAL_OCR_API_KEY });
+};
 
 /**
  * Processes an image with OCR to extract text using Mistral's API
  * 
  * @param imageUri - URI of the image to process
+ * @param config - Optional configuration for OCR processing
  * @returns Promise<string> - Extracted text from the image
  */
-export const processImageWithOCR = async (imageUri: string): Promise<string> => {
+export const processImageWithOCR = async (
+  imageUri: string, 
+  config: OCRConfig = DEFAULT_CONFIG
+): Promise<string> => {
   try {
+    const mistral = getMistralClient();
     const base64Image = await imageToBase64(imageUri);
-    
-    const requestPayload = {
-      model: "mistral-ocr", // Using Mistral's OCR model
-      id: `ocr_${Date.now()}`, // Generate a unique ID for the request
-      document: {
-        type: "image_url",
-        image_url: `data:image/jpeg;base64,${base64Image}`
-      },
-      pages: [0], // Process first page
-      include_image_base64: false,
-      image_limit: 1,
-      image_min_size: 100,
-      bbox_annotation_format: {
-        type: "text",
-        json_schema: {
-          type: "object",
-          properties: {
-            text: { type: "string" }
-          }
+    const documentUrl = `data:image/jpeg;base64,${base64Image}`;
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), config.timeout);
+
+    try {
+      const ocrResponse = await mistral.ocr.process({
+        model: config.modelVersion ?? 'mistral/mistral-ocr-latest',
+        document: {
+          type: "document_url",
+          documentUrl: documentUrl
         }
-      },
-      document_annotation_format: {
-        type: "text",
-        json_schema: {
-          type: "object",
-          properties: {
-            text: { type: "string" }
-          }
+      });
+
+      clearTimeout(timeoutId);
+
+      // Type guard to ensure ocrResponse has the expected structure
+      if (ocrResponse && typeof ocrResponse === 'object' && 'content' in ocrResponse) {
+        return ocrResponse.content as string || '';
+      }
+
+      throw new Error('OCR failed: Invalid response format');
+    } catch (error) {
+      if (error instanceof Error) {
+        if (error.name === 'AbortError') {
+          throw new Error('OCR request timed out');
         }
+
+        // Type guard for API errors
+        if (error && typeof error === 'object' && 'code' in error) {
+          const apiError = error as { code: number; message?: string };
+          throw new Error(`API Error (${apiError.code}): ${apiError.message || 'Unknown API error'}`);
+        }
+
+        throw error;
       }
-    };
-
-    console.log('OCR Request Payload:', JSON.stringify(requestPayload).slice(0, 500)); // Truncate for log safety
-
-    const response = await fetch(
-      'https://api.mistral.ai/v1/ocr',
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${MISTRAL_OCR_API_KEY}`
-        },
-        body: JSON.stringify(requestPayload),
-      }
-    );
-
-    console.log('OCR Response Status:', response.status);
-    const data = await response.json();
-    console.log('OCR Response Data:', JSON.stringify(data).slice(0, 1000)); // Truncate for log safety
-
-    if (data.pages && data.pages[0] && data.pages[0].text) {
-      return data.pages[0].text;
-    } else if (data.document_annotation) {
-      return data.document_annotation;
-    } else {
-      throw new Error('No text detected in the image');
+      throw new Error('Unknown error during OCR processing');
     }
   } catch (error) {
     console.error('Error in OCR processing:', error);
     throw error;
+  }
+};
+
+/**
+ * Validates an OCR API key by attempting to initialize the client
+ * 
+ * @param apiKey - The API key to validate
+ * @returns Promise<boolean> - Whether the key is valid
+ */
+export const validateOCRApiKey = async (apiKey: string): Promise<boolean> => {
+  try {
+    const mistral = new Mistral({ apiKey });
+    // Try to list models to verify the API key works
+    await mistral.models.list();
+    return true;
+  } catch (error) {
+    console.error('Error validating API key:', error);
+    return false;
   }
 };
 
@@ -93,12 +122,18 @@ export const registerOCRApiKey = async (
   provider: 'mistral' | 'google' | 'other'
 ): Promise<boolean> => {
   try {
+    if (provider !== 'mistral') {
+      throw new Error('Only Mistral provider is currently supported');
+    }
+    
+    const isValid = await validateOCRApiKey(apiKey);
+    if (!isValid) {
+      throw new Error('Invalid API key');
+    }
     // In a real app, you would securely store the API key
-    // For development, we'll just return success
-    console.log(`API key registered for ${provider}`);
     return true;
   } catch (error) {
     console.error('Error registering API key:', error);
-    return false;
+    throw error;
   }
 };
